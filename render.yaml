@@ -1,0 +1,25 @@
+# Render Blueprint: one free web service serves the API and the built frontend.
+# The database is an external Neon Postgres; paste its connection string as DATABASE_URL.
+services:
+  - type: web
+    name: wellbeing-system
+    runtime: node
+    plan: free
+    buildCommand: cd frontend && npm ci && npm run build && cd ../backend && npm ci --include=dev
+    startCommand: cd backend && npm run db:migrate && npm start
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_DIST
+        value: ../frontend/dist
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: APP_URL
+        sync: false
