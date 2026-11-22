@@ -1,6 +1,7 @@
 import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { api, assign, db, makeUser, startServer, stopServer, type TestUser } from './helpers';
+import { generateKeyPairSync } from 'node:crypto';
 import { startPushService } from '../src/services/push.service';
 
 interface Sent {
@@ -13,6 +14,8 @@ interface Sent {
 describe('Push notifications for the mobile app', () => {
   let admin: TestUser, manager: TestUser, employee: TestUser;
   const sent: Sent[] = [];
+  const fcm: any[] = [];
+  let fcmDead = '';
   const realFetch = globalThis.fetch;
   let deadToken = '';
 
@@ -23,12 +26,20 @@ describe('Push notifications for the mobile app', () => {
     employee = await makeUser('EMPLOYEE', 'Secret Employee Name');
     await assign(admin, employee, manager);
 
+    const { privateKey } = generateKeyPairSync('rsa', { modulusLength: 2048 });
+    process.env.FIREBASE_SERVICE_ACCOUNT = JSON.stringify({ project_id: 'demo-proj', client_email: 'svc@demo-proj.iam.gserviceaccount.com', private_key: privateKey.export({ type: 'pkcs8', format: 'pem' }) });
     // Stand in for the Expo push gateway; everything else (the API under test) still uses the real fetch.
     globalThis.fetch = (async (input: any, init?: any) => {
       if (String(input).includes('exp.host')) {
         const messages = JSON.parse(init.body) as Sent[];
         sent.push(...messages);
         return new Response(JSON.stringify({ data: messages.map((m) => (m.to === deadToken ? { status: 'error', details: { error: 'DeviceNotRegistered' } } : { status: 'ok' })) }), { status: 200 });
+      }
+      if (String(input).includes('oauth2.googleapis.com')) return new Response(JSON.stringify({ access_token: 'ya29.fake', expires_in: 3600 }), { status: 200 });
+      if (String(input).includes('fcm.googleapis.com')) {
+        const body = JSON.parse(init.body);
+        fcm.push({ url: String(input), auth: init.headers.Authorization, ...body.message });
+        return body.message.token === fcmDead ? new Response(JSON.stringify({ error: { status: 'UNREGISTERED' } }), { status: 404 }) : new Response('{}', { status: 200 });
       }
       return realFetch(input, init);
     }) as typeof fetch;
@@ -91,5 +102,22 @@ describe('Push notifications for the mobile app', () => {
     await wait(2500);
     assert.equal(sent.filter((m) => m.to === deadToken).length, 1, 'the dead token received nothing after being invalidated');
     assert.ok(sent.length >= count);
+  });
+
+  it('delivers native Android (FCM) tokens through Firebase HTTP v1 with generic text, and drops dead tokens', async () => {
+    const good = 'fcm-token-good-' + 'x'.repeat(40);
+    fcmDead = 'fcm-token-dead-' + 'y'.repeat(40);
+    await api('POST', '/devices', { token: manager.token, body: { token: good, platform: 'android' } });
+    await api('POST', '/devices', { token: manager.token, body: { token: fcmDead, platform: 'android' } });
+    const created = await api('POST', '/requests', { token: employee.token, body: { type: 'DISCUSSION', reason: 'very private text' } });
+    await wait(2500);
+    const mine = fcm.filter((m) => m.token === good);
+    assert.equal(mine.length, 1);
+    assert.equal(mine[0].url, 'https://fcm.googleapis.com/v1/projects/demo-proj/messages:send');
+    assert.equal(mine[0].auth, 'Bearer ya29.fake');
+    assert.equal(mine[0].data.entityId, String(created.data.id));
+    assert.ok(!JSON.stringify(mine[0]).includes('Secret Employee Name') && !JSON.stringify(mine[0]).includes('very private text'));
+    const { rows } = await db.query('SELECT is_valid FROM device_tokens WHERE token = $1', [fcmDead]);
+    assert.equal(rows[0].is_valid, false);
   });
 });
