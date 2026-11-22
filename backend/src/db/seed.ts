@@ -22,11 +22,12 @@ interface SeedUser {
 }
 
 const USERS: SeedUser[] = [
-  { code: 'SUPER001', name: 'Zara Siddiqui', email: 'super.admin@example.com', role: 'SUPER_ADMIN' },
+  { code: 'SUPER001', name: 'Rana Salman Anwar', email: 'super.admin@example.com', role: 'SUPER_ADMIN' },
   { code: 'HR001', name: 'Ayesha Khan', email: 'hr.admin@example.com', role: 'HR' },
-  { code: 'MGR001', name: 'Bilal Ahmed', email: 'bilal.ahmed@example.com', role: 'LINE_MANAGER', department: 'Engineering', designation: 'Engineering Manager' },
-  { code: 'MGR002', name: 'Sara Malik', email: 'sara.malik@example.com', role: 'LINE_MANAGER', department: 'Sales & Marketing', designation: 'Head of Sales' },
-  { code: 'MGR003', name: 'Omar Farooq', email: 'omar.farooq@example.com', role: 'LINE_MANAGER', department: 'Operations', designation: 'Operations Manager' },
+  { code: 'MGR001', name: 'Osama Noor Khan', email: 'bilal.ahmed@example.com', role: 'LINE_MANAGER', department: 'Engineering', designation: 'Engineering Manager' },
+  { code: 'MGR002', name: 'Aiman Fatima', email: 'sara.malik@example.com', role: 'LINE_MANAGER', department: 'Sales & Marketing', designation: 'Head of Sales' },
+  { code: 'MGR003', name: 'Hamza Khan', email: 'omar.farooq@example.com', role: 'LINE_MANAGER', department: 'Operations', designation: 'Operations Manager' },
+  { code: 'MGR004', name: 'Hammad Rafi', email: 'hammad.rafi@example.com', role: 'LINE_MANAGER', department: 'Finance', designation: 'Finance Manager' },
   { code: 'EMP001', name: 'Hassan Raza', email: 'hassan.raza@example.com', role: 'EMPLOYEE', department: 'Engineering', designation: 'Software Engineer', manager: 'MGR001' },
   { code: 'EMP002', name: 'Fatima Noor', email: 'fatima.noor@example.com', role: 'EMPLOYEE', department: 'Engineering', designation: 'QA Engineer', manager: 'MGR001' },
   { code: 'EMP003', name: 'Usman Tariq', email: 'usman.tariq@example.com', role: 'EMPLOYEE', department: 'Engineering', designation: 'Senior Software Engineer', manager: 'MGR001' },
