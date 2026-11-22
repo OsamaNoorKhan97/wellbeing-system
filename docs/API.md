@@ -183,3 +183,14 @@ Roles are `EMPLOYEE`, `LINE_MANAGER`, `HR` and `SUPER_ADMIN`. HR-level endpoints
 | `POST /meetings/:id/reschedule` `{scheduledAt, durationMinutes?, reason?}` | Line Manager | Status `RESCHEDULED`, previous schedule kept in history |
 | `POST /meetings/:id/snooze` `{minutes}` or `{until}` | Line Manager | Postpones the reminder only; one reminder is created when it expires |
 | `GET /meetings/:id/history` | Line Manager, Employee | Reschedules and rejection (snoozes are visible to the manager only) |
+
+## Mobile app devices (push notifications)
+
+Used by the separate `WellBeing-Mobile` app. Any authenticated role.
+
+| Method and path | Body | Purpose |
+|---|---|---|
+| `POST /devices` | `{ token, platform: "ios"\|"android", deviceName? }` | Register (or re-register) a push token for the signed-in user. A token that belonged to another account moves to this user. |
+| `POST /devices/unregister` | `{ token }` | Remove the signed-in user's token (logout). |
+
+Every notification created by the backend is also pushed once to each valid device with generic text (never names, scores or request text). Set `PUSH_ENABLED=false` to turn the sender off. See the mobile project's `docs/API-ADDITIONS.md`.

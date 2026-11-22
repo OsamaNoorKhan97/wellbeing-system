@@ -11,6 +11,7 @@ import { assessmentsRouter } from './modules/assessments/assessments.routes';
 import { assignmentsRouter } from './modules/assignments/assignments.routes';
 import { auditRouter } from './modules/audit/audit.routes';
 import { authRouter } from './modules/auth/auth.routes';
+import { devicesRouter } from './modules/devices/devices.routes';
 import { employeesRouter } from './modules/employees/employees.routes';
 import { managersRouter } from './modules/managers/managers.routes';
 import { meetingsRouter } from './modules/meetings/meetings.routes';
@@ -48,6 +49,7 @@ export function createApp() {
   api.use('/analytics', analyticsRouter);
   api.use('/audit-logs', auditRouter);
   api.use('/alerts', alertsRouter);
+  api.use('/devices', devicesRouter);
   api.use(notFoundHandler);
   app.use('/api/v1', api);
 

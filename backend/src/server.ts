@@ -1,8 +1,10 @@
 import { createApp } from './app';
+import { startPushService } from './services/push.service';
 import { env } from './config/env';
 import { closePool } from './db/pool';
 import { processDueReminders } from './modules/meetings/meetings.service';
 
+startPushService();
 const server = createApp().listen(env.PORT, () => {
   console.log(`API listening on http://localhost:${env.PORT}/api/v1 (${env.NODE_ENV})`);
 });
