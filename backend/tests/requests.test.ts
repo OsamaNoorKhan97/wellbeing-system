@@ -1,4 +1,4 @@
-import { after, before, describe, it } from 'node:test';
+﻿import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { api, assign, db, makeUser, notificationsOf, startServer, stopServer, type TestUser } from './helpers';
 
@@ -7,7 +7,7 @@ describe('Break request workflow', () => {
 
   before(async () => {
     await startServer();
-    admin = await makeUser('HR_ADMIN');
+    admin = await makeUser('HR');
     manager = await makeUser('LINE_MANAGER', 'Mona Manager');
     employee = await makeUser('EMPLOYEE', 'Eli Employee');
     second = await makeUser('EMPLOYEE', 'Sam Second');

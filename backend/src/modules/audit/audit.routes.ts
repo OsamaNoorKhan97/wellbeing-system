@@ -1,14 +1,14 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { db } from '../../db/pool';
-import { authenticate, authorize } from '../../middleware/authenticate';
+import { authenticate, authorize, HR_LEVEL } from '../../middleware/authenticate';
 import { validate } from '../../middleware/validate';
 import { asyncHandler, offsetOf, ok, pageMeta, paginationSchema } from '../../utils/http';
 
 const listQuery = paginationSchema.extend({ action: z.string().trim().max(60).optional(), search: z.string().trim().max(100).optional() });
 
 export const auditRouter = Router();
-auditRouter.use(authenticate, authorize('HR_ADMIN'));
+auditRouter.use(authenticate, authorize(...HR_LEVEL));
 
 auditRouter.get(
   '/',

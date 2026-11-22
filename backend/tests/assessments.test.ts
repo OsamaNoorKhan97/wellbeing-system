@@ -3,13 +3,15 @@ import assert from 'node:assert/strict';
 import { api, db, makeUser, startServer, stopServer, type TestUser } from './helpers';
 
 const ratings = { mood: 4, stress: 2, energy: 3 };
+const ago = (hours: number) => db.query(`UPDATE wellbeing_assessments SET submitted_at = submitted_at - make_interval(hours => $1)`, [hours]);
 
-describe('Well-being check and daily limit', () => {
-  let admin: TestUser, employee: TestUser;
+describe('Well-being check and configurable interval', () => {
+  let hr: TestUser, superAdmin: TestUser, employee: TestUser;
 
   before(async () => {
     await startServer();
-    admin = await makeUser('HR_ADMIN');
+    hr = await makeUser('HR');
+    superAdmin = await makeUser('SUPER_ADMIN');
     employee = await makeUser('EMPLOYEE');
   });
   after(stopServer);
@@ -21,9 +23,9 @@ describe('Well-being check and daily limit', () => {
     }
   });
 
-  it('stores a check-in with its ratings and submission time', async () => {
+  it('defaults to once every 24 hours and stores mood, stress and energy together', async () => {
     const before = await api('GET', '/assessments/status', { token: employee.token });
-    assert.deepEqual([before.data.limit, before.data.usedToday, before.data.canSubmit], [1, 0, true]);
+    assert.deepEqual([before.data.intervalHours, before.data.canSubmit, before.data.nextAvailableAt], [24, true, null]);
 
     const result = await api('POST', '/assessments', { token: employee.token, body: ratings });
     assert.equal(result.status, 201);
@@ -33,42 +35,46 @@ describe('Well-being check and daily limit', () => {
     );
     assert.ok(Math.abs(Date.now() - new Date(result.data.assessment.submittedAt).getTime()) < 60_000);
     assert.equal(result.data.status.canSubmit, false);
+    const next = new Date(result.data.status.nextAvailableAt).getTime();
+    assert.ok(Math.abs(next - (Date.now() + 24 * 3_600_000)) < 60_000, 'next eligible time is 24 hours after the submission');
   });
 
-  it('rejects submissions over the daily limit and says when the next one is possible', async () => {
+  it('rejects an early submission on the server and says when the next one is possible', async () => {
     const result = await api('POST', '/assessments', { token: employee.token, body: ratings });
     assert.equal(result.status, 429);
-    assert.equal(result.body.error.code, 'DAILY_LIMIT_REACHED');
-    const next = new Date(result.body.error.details.nextAvailableAt).getTime();
-    assert.ok(next > Date.now() && next <= Date.now() + 24 * 3_600_000, 'next slot is the coming midnight in the organization time zone');
+    assert.equal(result.body.error.code, 'ASSESSMENT_NOT_YET_AVAILABLE');
+    assert.equal(result.body.error.details.intervalHours, 24);
+    assert.ok(new Date(result.body.error.details.nextAvailableAt).getTime() > Date.now());
+    assert.equal((await api('GET', '/assessments', { token: employee.token })).body.meta.total, 1);
   });
 
-  it('applies a new limit set by HR/Admin immediately', async () => {
-    const updated = await api('PUT', '/settings', { token: admin.token, body: { daily_assessment_limit: 3 } });
-    assert.equal(updated.status, 200);
+  it('lets only the Super Admin change the frequency and applies it immediately', async () => {
+    assert.equal((await api('PUT', '/settings', { token: hr.token, body: { assessment_interval_hours: 12 } })).status, 403);
+    assert.equal((await api('PUT', '/settings', { token: employee.token, body: { assessment_interval_hours: 12 } })).status, 403);
 
-    assert.equal((await api('POST', '/assessments', { token: employee.token, body: ratings })).status, 201);
+    // Submitted about 13 hours ago: still blocked at 24 hours ...
+    await ago(13);
+    assert.equal((await api('GET', '/assessments/status', { token: employee.token })).data.canSubmit, false);
+    // ... but eligible as soon as the Super Admin sets 12 hours.
+    const updated = await api('PUT', '/settings', { token: superAdmin.token, body: { assessment_interval_hours: 12 } });
+    assert.equal(updated.status, 200);
+    const status = await api('GET', '/assessments/status', { token: employee.token });
+    assert.deepEqual([status.data.intervalHours, status.data.canSubmit], [12, true]);
     assert.equal((await api('POST', '/assessments', { token: employee.token, body: ratings })).status, 201);
     assert.equal((await api('POST', '/assessments', { token: employee.token, body: ratings })).status, 429);
-
-    const status = await api('GET', '/assessments/status', { token: employee.token });
-    assert.deepEqual([status.data.limit, status.data.usedToday, status.data.remaining], [3, 3, 0]);
-
-    await api('PUT', '/settings', { token: admin.token, body: { daily_assessment_limit: 1 } });
-    assert.equal((await api('GET', '/assessments/status', { token: employee.token })).data.canSubmit, false);
   });
 
-  it('counts only today, so the limit resets on the next day', async () => {
-    const other = await makeUser('EMPLOYEE');
-    await db.query(
-      `INSERT INTO wellbeing_assessments (employee_id, mood_rating, stress_rating, energy_rating, submitted_at)
-       VALUES ($1, 3, 3, 3, now() - interval '1 day'), ($1, 3, 3, 3, now() - interval '2 days')`,
-      [other.id],
-    );
-    assert.equal((await api('GET', '/assessments/status', { token: other.token })).data.usedToday, 0);
-    assert.equal((await api('POST', '/assessments', { token: other.token, body: ratings })).status, 201);
-    const history = await api('GET', '/assessments', { token: other.token });
-    assert.equal(history.body.meta.total, 3);
+  it('supports 48 hours, 72 hours and a custom interval', async () => {
+    for (const hours of [48, 72, 5]) {
+      assert.equal((await api('PUT', '/settings', { token: superAdmin.token, body: { assessment_interval_hours: hours } })).status, 200);
+      const status = await api('GET', '/assessments/status', { token: employee.token });
+      assert.equal(status.data.intervalHours, hours);
+      const expected = new Date(status.data.lastSubmittedAt).getTime() + hours * 3_600_000;
+      assert.ok(Math.abs(new Date(status.data.nextAvailableAt ?? expected).getTime() - expected) < 5_000 || status.data.canSubmit);
+    }
+    await ago(6); // 6 hours since the last check-in: a 5 hour interval has passed
+    assert.equal((await api('GET', '/assessments/status', { token: employee.token })).data.canSubmit, true);
+    await api('PUT', '/settings', { token: superAdmin.token, body: { assessment_interval_hours: 24 } });
   });
 
   it('cannot be bypassed with simultaneous submissions', async () => {
@@ -78,11 +84,11 @@ describe('Well-being check and daily limit', () => {
     assert.equal(results.filter((r) => r.status === 429).length, 5);
   });
 
-  it('rejects invalid limit values', async () => {
-    for (const value of [0, 11, 'many', 1.5]) {
-      assert.equal((await api('PUT', '/settings', { token: admin.token, body: { daily_assessment_limit: value } })).status, 422, String(value));
+  it('rejects invalid interval values and unknown settings', async () => {
+    for (const value of [0, -3, 5000, 'often', 1.5]) {
+      assert.equal((await api('PUT', '/settings', { token: superAdmin.token, body: { assessment_interval_hours: value } })).status, 422, String(value));
     }
-    assert.equal((await api('PUT', '/settings', { token: admin.token, body: { organization_timezone: 'Mars/Olympus' } })).status, 422);
-    assert.equal((await api('PUT', '/settings', { token: admin.token, body: { unknown_setting: 1 } })).status, 422);
+    assert.equal((await api('PUT', '/settings', { token: superAdmin.token, body: { organization_timezone: 'Mars/Olympus' } })).status, 422);
+    assert.equal((await api('PUT', '/settings', { token: superAdmin.token, body: { unknown_setting: 1 } })).status, 422);
   });
 });

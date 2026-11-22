@@ -165,3 +165,21 @@ Each notification: `id, type, title, message, relatedUserId, relatedUserName, en
 ## Health
 
 `GET /health` (public) → `{ status: "ok", time }`.
+
+## Super Admin, well-being alerts and meeting actions
+
+Roles are `EMPLOYEE`, `LINE_MANAGER`, `HR` and `SUPER_ADMIN`. HR-level endpoints (users, assignments, analytics, audit log, survey questions) accept `HR` and `SUPER_ADMIN`.
+
+| Method and path | Roles | Purpose |
+|---|---|---|
+| `GET /settings` | HR, Super Admin | Read the global configuration |
+| `PUT /settings` | **Super Admin only** | Change `assessment_interval_hours`, `survey_frequency_days`, `alert_*` thresholds, notification switches |
+| `GET /assessments/status` | Employee | `intervalHours`, `canSubmit`, `nextAvailableAt`, `lastSubmittedAt`. `POST /assessments` returns 429 `ASSESSMENT_NOT_YET_AVAILABLE` before the interval has passed and a `recommendation` when an alert was raised |
+| `GET /alerts?status=open\|ACTIVE\|ACKNOWLEDGED\|RESOLVED\|all` | Line Manager (own team), HR, Super Admin | List alerts |
+| `GET /alerts/:id` | same | Details and follow-up comments (dates only, never ratings) |
+| `POST /alerts/:id/acknowledge`, `/resolve`, `/comments` | same | Handle an alert; `comment` optional (required for `/comments`) |
+| `POST /requests` with `alertId` | Employee | Break request linked to the alert behind the recommendation |
+| `POST /meetings/:id/reject` `{reason?}` | Line Manager | Status `REJECTED`, employee notified |
+| `POST /meetings/:id/reschedule` `{scheduledAt, durationMinutes?, reason?}` | Line Manager | Status `RESCHEDULED`, previous schedule kept in history |
+| `POST /meetings/:id/snooze` `{minutes}` or `{until}` | Line Manager | Postpones the reminder only; one reminder is created when it expires |
+| `GET /meetings/:id/history` | Line Manager, Employee | Reschedules and rejection (snoozes are visible to the manager only) |

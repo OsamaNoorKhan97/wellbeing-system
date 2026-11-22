@@ -1,7 +1,7 @@
-import { FiActivity, FiCalendar, FiCheckSquare, FiClipboard, FiCoffee, FiInbox, FiMessageSquare, FiUsers } from 'react-icons/fi';
+import { FiActivity, FiAlertTriangle, FiCalendar, FiCheckSquare, FiClipboard, FiCoffee, FiInbox, FiMessageSquare, FiUsers } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import { MeetingItem, RequestTypeLabel } from '../../components/RequestBits';
-import { Card, EmptyState, ErrorState, PageHeader, RequestStatusBadge, Skeleton, StatCard } from '../../components/ui';
+import { Alert, Card, EmptyState, ErrorState, PageHeader, RequestStatusBadge, Skeleton, StatCard } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
 import { timeAgo } from '../../lib/format';
@@ -22,7 +22,7 @@ export function ManagerDashboard() {
       ) : loading || !data ? (
         <div className="space-y-6">
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {[0, 1, 2, 3].map((i) => (
+            {[0, 1, 2, 3, 4].map((i) => (
               <Skeleton key={i} className="h-20" />
             ))}
           </div>
@@ -30,8 +30,22 @@ export function ManagerDashboard() {
         </div>
       ) : (
         <>
-          <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {data.summary.activeAlerts > 0 && (
+            <div className="mb-6">
+              <Alert tone="warning">
+                <span className="inline-flex flex-wrap items-center gap-x-2">
+                  <FiAlertTriangle aria-hidden />
+                  {data.summary.activeAlerts} employee well-being alert{data.summary.activeAlerts === 1 ? ' needs' : 's need'} your attention.
+                  <Link to="/manager/alerts" className="font-medium underline">
+                    Review alerts
+                  </Link>
+                </span>
+              </Alert>
+            </div>
+          )}
+          <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <StatCard label="Total Assigned Employees" value={data.summary.assignedEmployees} icon={<FiUsers />} />
+            <StatCard label="Active Well-Being Alerts" value={data.summary.activeAlerts} icon={<FiAlertTriangle />} tone={data.summary.activeAlerts > 0 ? 'red' : 'green'} />
             <StatCard label="Pending Break Requests" value={data.summary.pendingBreakRequests} icon={<FiCoffee />} tone="amber" />
             <StatCard label="Pending Discussion Requests" value={data.summary.pendingDiscussionRequests} icon={<FiMessageSquare />} tone="blue" />
             <StatCard label="Upcoming Meetings" value={data.summary.upcomingMeetings} icon={<FiCalendar />} tone="violet" />

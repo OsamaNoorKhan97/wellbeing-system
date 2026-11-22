@@ -10,6 +10,10 @@ export type NotificationType =
   | 'MEETING_SCHEDULED'
   | 'MEETING_UPDATED'
   | 'MEETING_CANCELLED'
+  | 'MEETING_REJECTED'
+  | 'MEETING_RESCHEDULED'
+  | 'MEETING_REMINDER'
+  | 'WELLBEING_ALERT'
   | 'MANAGER_ASSIGNED'
   | 'TEAM_MEMBER_ASSIGNED';
 
@@ -19,7 +23,7 @@ export interface NewNotification {
   type: NotificationType;
   title: string;
   message: string;
-  entityType?: 'support_request' | 'meeting' | 'assignment';
+  entityType?: 'support_request' | 'meeting' | 'assignment' | 'wellbeing_alert';
   entityId?: number;
 }
 

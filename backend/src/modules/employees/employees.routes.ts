@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticate, authorize, currentUser } from '../../middleware/authenticate';
 import { getActiveManager } from '../../services/assignment.service';
 import { asyncHandler, ok } from '../../utils/http';
+import { getBreakRecommendation } from '../alerts/alerts.service';
 import { getAssessmentStatus, listOwnAssessments } from '../assessments/assessments.service';
 import { listMeetings } from '../meetings/meetings.service';
 import { listNotifications } from '../notifications/notifications.routes';
@@ -15,7 +16,7 @@ employeesRouter.get(
   '/me/dashboard',
   asyncHandler(async (req, res) => {
     const user = currentUser(req);
-    const [assessmentStatus, recentAssessments, surveyStatus, requests, meetings, notifications, manager] = await Promise.all([
+    const [assessmentStatus, recentAssessments, surveyStatus, requests, meetings, notifications, manager, breakRecommendation] = await Promise.all([
       getAssessmentStatus(user.id),
       listOwnAssessments(user.id, 1, 7),
       getSurveyStatus(user.id),
@@ -23,6 +24,7 @@ employeesRouter.get(
       listMeetings(user, { page: 1, pageSize: 5, scope: 'upcoming' }),
       listNotifications(user.id, 1, 5),
       getActiveManager(user.id),
+      getBreakRecommendation(user.id),
     ]);
     ok(res, {
       assessmentStatus,
@@ -33,6 +35,7 @@ employeesRouter.get(
       recentNotifications: notifications.items,
       unreadNotifications: notifications.unread,
       manager,
+      breakRecommendation,
     });
   }),
 );

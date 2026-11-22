@@ -22,7 +22,8 @@ interface SeedUser {
 }
 
 const USERS: SeedUser[] = [
-  { code: 'HR001', name: 'Ayesha Khan', email: 'hr.admin@example.com', role: 'HR_ADMIN' },
+  { code: 'SUPER001', name: 'Zara Siddiqui', email: 'super.admin@example.com', role: 'SUPER_ADMIN' },
+  { code: 'HR001', name: 'Ayesha Khan', email: 'hr.admin@example.com', role: 'HR' },
   { code: 'MGR001', name: 'Bilal Ahmed', email: 'bilal.ahmed@example.com', role: 'LINE_MANAGER', department: 'Engineering', designation: 'Engineering Manager' },
   { code: 'MGR002', name: 'Sara Malik', email: 'sara.malik@example.com', role: 'LINE_MANAGER', department: 'Sales & Marketing', designation: 'Head of Sales' },
   { code: 'MGR003', name: 'Omar Farooq', email: 'omar.farooq@example.com', role: 'LINE_MANAGER', department: 'Operations', designation: 'Operations Manager' },
@@ -102,8 +103,9 @@ async function seed() {
   employees.forEach((employee, index) => {
     const baseline = 3 + (index % 4) * 0.4;
     for (let day = 30; day >= 0; day -= 1) {
-      // The first sample employee has no check-in today, so the form can be tried straight away.
-      if (day === 0 && (index === 0 || random() < 0.4)) continue;
+      // The first sample employee has no recent check-in (nothing today or yesterday), so the form can be tried straight away.
+      if (index === 0 && day <= 1) continue;
+      if (day === 0 && random() < 0.4) continue;
       if (day > 0 && random() < 0.25) continue;
       const mood = clamp(baseline + (random() - 0.5) * 2.4);
       rows.push({
@@ -188,7 +190,8 @@ async function seed() {
 
   console.log(`\nSample data loaded: ${USERS.length} users, ${rows.length} check-ins.`);
   console.log(`All sample accounts use the password: ${PASSWORD}`);
-  console.log('  HR/Admin      hr.admin@example.com     (HR001)');
+  console.log('  Super Admin   super.admin@example.com  (SUPER001)');
+  console.log('  HR            hr.admin@example.com     (HR001)');
   console.log('  Line Manager  bilal.ahmed@example.com  (MGR001)');
   console.log('  Employee      hassan.raza@example.com  (EMP001)');
 }

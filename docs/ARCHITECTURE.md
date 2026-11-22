@@ -1,4 +1,4 @@
-# Architecture, assumptions and database design
+﻿# Architecture, assumptions and database design
 
 ## 1. Requirements analysis and assumptions
 
@@ -8,7 +8,7 @@ The specification leaves some points open. These are the decisions made, each ch
 |---|---|
 | Employee ID | A staff number every user has, including Line Managers and HR. Anyone can sign in with email or Employee ID. Stored upper-case, unique. |
 | Registration | Self-registration always creates an **Employee**. Line Managers and HR/Admin users are created by HR, or an existing user's role is changed. The first HR/Admin comes from the seed data or `npm run create-admin`. |
-| Rating scale | Mood and Energy: 1 = very low … 5 = excellent. **Stress is recorded literally: 1 = very low stress, 5 = very high stress**, so lower is better. The UI labels and analytics say so. |
+| Rating scale | Mood and Energy: 1 = very low â€¦ 5 = excellent. **Stress is recorded literally: 1 = very low stress, 5 = very high stress**, so lower is better. The UI labels and analytics say so. |
 | "Per day" | A calendar day in the organization time zone (setting, default `Asia/Karachi`), not the server's or the browser's. The limit resets at local midnight and the employee is told when. |
 | Survey frequency | An employee can submit the survey once per cycle; a new cycle starts N days after their last submission (setting, default 30). |
 | Changing questions | Questions are never deleted, only deactivated, so past answers keep their meaning. A submission must answer every question active at that moment. |
@@ -41,16 +41,16 @@ The specification leaves some points open. These are the decisions made, each ch
 
 ```
 Browser (React SPA)
-   │  HTTPS, JSON, Authorization: Bearer <JWT>
-   ▼
+   â”‚  HTTPS, JSON, Authorization: Bearer <JWT>
+   â–¼
 Express API  /api/v1
-   helmet → CORS → JSON body → router
-     per route:  rate limit (auth only) → authenticate → authorize(role) → validate(Zod) → handler
-     handler → service (business rules, ownership checks, transactions)
-                 ├─ notification service ──► notifications table ──► EventEmitter (future push/WebSocket)
-                 └─ audit service ────────► audit_logs table
-   error handler → { success: false, error: { code, message, details } }
-   ▼
+   helmet â†’ CORS â†’ JSON body â†’ router
+     per route:  rate limit (auth only) â†’ authenticate â†’ authorize(role) â†’ validate(Zod) â†’ handler
+     handler â†’ service (business rules, ownership checks, transactions)
+                 â”œâ”€ notification service â”€â”€â–º notifications table â”€â”€â–º EventEmitter (future push/WebSocket)
+                 â””â”€ audit service â”€â”€â”€â”€â”€â”€â”€â”€â–º audit_logs table
+   error handler â†’ { success: false, error: { code, message, details } }
+   â–¼
 PostgreSQL
 ```
 
@@ -58,7 +58,7 @@ Rules that matter are enforced in the service layer and, where possible, by the 
 
 - **Ownership** is part of the SQL (`WHERE employee_id = $me`, `WHERE manager_id = $me`). A record that belongs to someone else is reported as *404 Not Found*, so its existence is not revealed.
 - **Daily limit**: the count and insert run in one transaction holding a per-employee advisory lock, so simultaneous submissions cannot exceed the limit.
-- **Request decisions** lock the request row (`SELECT … FOR UPDATE`), so a request cannot be approved twice or approved and rejected at once.
+- **Request decisions** lock the request row (`SELECT â€¦ FOR UPDATE`), so a request cannot be approved twice or approved and rejected at once.
 - **One current manager per employee** is a partial unique index.
 - Every state-changing action writes an audit row in the same transaction as the change.
 
@@ -70,15 +70,15 @@ The frontend hides pages a role cannot use and redirects on manual URL entry, bu
 
 | Table | Purpose |
 |---|---|
-| `roles` | The three roles: `EMPLOYEE`, `LINE_MANAGER`, `HR_ADMIN`. |
+| `roles` | The three roles: `EMPLOYEE`, `LINE_MANAGER`, `HR`. |
 | `users` | Identity and credentials for everyone: name, email, Employee ID (`employee_code`), password hash, active flag, `token_version` (bumped to invalidate sessions). |
 | `employee_profiles` | One per employee: department, designation. |
 | `line_manager_profiles` | One per Line Manager: department, designation. |
 | `employee_manager_assignments` | Which employee reports to which manager. `is_active` marks the current row; ended rows are history. |
-| `wellbeing_assessments` | One check-in: mood, stress, energy (1–5) and submission time. |
+| `wellbeing_assessments` | One check-in: mood, stress, energy (1â€“5) and submission time. |
 | `survey_questions` | The question bank: text, category, order, active flag. |
 | `survey_submissions` | One completed survey by an employee at a time. |
-| `survey_responses` | One answer (1–5) per question per submission. |
+| `survey_responses` | One answer (1â€“5) per question per submission. |
 | `support_requests` | Break and discussion requests with status, the employee's note, the manager's comment and who resolved it when. |
 | `meetings` | Scheduled meetings (optionally linked to a discussion request): time, duration, purpose, location, status. |
 | `notifications` | In-app notifications: recipient, related user, title, message, read flag. |
@@ -91,16 +91,16 @@ All tables have an identity primary key; all except the append-only `audit_logs`
 
 ### Relationships
 
-- `roles` 1 — N `users`
-- `users` 1 — 0..1 `employee_profiles`; `users` 1 — 0..1 `line_manager_profiles`
-- `users` (employee) 1 — N `employee_manager_assignments` N — 1 `users` (manager); at most one active row per employee
-- `users` 1 — N `wellbeing_assessments`
-- `users` 1 — N `survey_submissions` 1 — N `survey_responses` N — 1 `survey_questions`
-- `users` (employee) 1 — N `support_requests` N — 1 `users` (manager)
-- `support_requests` 1 — 0..N `meetings` (at most one not cancelled); `meetings` N — 1 `users` (employee), N — 1 `users` (manager)
-- `users` 1 — N `notifications` (recipient); `notifications` N — 0..1 `users` (related user)
-- `users` 1 — N `audit_logs` (actor); `users` 1 — N `password_reset_tokens`
-- `application_settings` N — 0..1 `users` (last updated by)
+- `roles` 1 â€” N `users`
+- `users` 1 â€” 0..1 `employee_profiles`; `users` 1 â€” 0..1 `line_manager_profiles`
+- `users` (employee) 1 â€” N `employee_manager_assignments` N â€” 1 `users` (manager); at most one active row per employee
+- `users` 1 â€” N `wellbeing_assessments`
+- `users` 1 â€” N `survey_submissions` 1 â€” N `survey_responses` N â€” 1 `survey_questions`
+- `users` (employee) 1 â€” N `support_requests` N â€” 1 `users` (manager)
+- `support_requests` 1 â€” 0..N `meetings` (at most one not cancelled); `meetings` N â€” 1 `users` (employee), N â€” 1 `users` (manager)
+- `users` 1 â€” N `notifications` (recipient); `notifications` N â€” 0..1 `users` (related user)
+- `users` 1 â€” N `audit_logs` (actor); `users` 1 â€” N `password_reset_tokens`
+- `application_settings` N â€” 0..1 `users` (last updated by)
 
 ### ERD
 
@@ -201,9 +201,9 @@ The exact DDL is in `backend/migrations/001_initial_schema.sql`.
 
 ### Status lifecycles
 
-- Break request: `PENDING` → `APPROVED` | `REJECTED` | `CANCELLED` (withdrawn by the employee)
-- Discussion request: `PENDING` → `SCHEDULED` → `COMPLETED`; `SCHEDULED` → `PENDING` if the meeting is cancelled; `PENDING` → `CANCELLED`
-- Meeting: `SCHEDULED` → `COMPLETED` | `CANCELLED`
+- Break request: `PENDING` â†’ `APPROVED` | `REJECTED` | `CANCELLED` (withdrawn by the employee)
+- Discussion request: `PENDING` â†’ `SCHEDULED` â†’ `COMPLETED`; `SCHEDULED` â†’ `PENDING` if the meeting is cancelled; `PENDING` â†’ `CANCELLED`
+- Meeting: `SCHEDULED` â†’ `COMPLETED` | `CANCELLED`
 
 ## 5. Privacy and data access
 
@@ -215,7 +215,7 @@ The exact DDL is in `backend/migrations/001_initial_schema.sql`.
 | Whether/when a check-in or survey was completed | Read | Read | Counts per user |
 | Break/discussion requests incl. the note | Read, create, withdraw | Read, decide | Volumes and status totals only |
 | Meetings | Read | Read, manage own | Count only |
-| Audit log | — | — | Read |
+| Audit log | â€” | â€” | Read |
 
 Averages are withheld (returned as `null`, shown as "Hidden") whenever fewer than `analytics_min_group_size` employees contributed (default 3), so a small department or a quiet day cannot expose one person. The same notice is shown to users in the app under **Privacy** and is linked from the registration page.
 

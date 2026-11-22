@@ -4,6 +4,7 @@ import { db } from '../../db/pool';
 import { authenticate, currentUser } from '../../middleware/authenticate';
 import { validate } from '../../middleware/validate';
 import { asyncHandler, notFound, offsetOf, ok, pageMeta, paginationSchema, parseId } from '../../utils/http';
+import { processDueReminders } from '../meetings/meetings.service';
 
 const NOTIFICATION_SELECT = `
   SELECT n.id, n.type, n.title, n.message, n.entity_type AS "entityType", n.entity_id AS "entityId",
@@ -36,6 +37,7 @@ notificationsRouter.get(
   validate({ query: listQuery }),
   asyncHandler(async (req, res) => {
     const query = res.locals.query as z.infer<typeof listQuery>;
+    await processDueReminders();
     const { items, total, unread } = await listNotifications(currentUser(req).id, query.page, query.pageSize, query.unreadOnly === 'true');
     ok(res, items, { ...pageMeta(query.page, query.pageSize, total), unread });
   }),
@@ -44,6 +46,7 @@ notificationsRouter.get(
 notificationsRouter.get(
   '/unread-count',
   asyncHandler(async (req, res) => {
+    await processDueReminders();
     const { rows } = await db.query('SELECT count(*)::int AS unread FROM notifications WHERE recipient_id = $1 AND NOT is_read', [
       currentUser(req).id,
     ]);

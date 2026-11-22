@@ -1,4 +1,4 @@
-export type Role = 'EMPLOYEE' | 'LINE_MANAGER' | 'HR_ADMIN';
+export type Role = 'EMPLOYEE' | 'LINE_MANAGER' | 'HR' | 'SUPER_ADMIN';
 
 export interface User {
   id: number;
@@ -44,13 +44,56 @@ export interface Assessment {
 }
 
 export interface AssessmentStatus {
-  limit: number;
-  usedToday: number;
-  remaining: number;
+  /** Hours between two assessments, set by the Super Admin. */
+  intervalHours: number;
   canSubmit: boolean;
   nextAvailableAt: string | null;
+  lastSubmittedAt: string | null;
   timezone: string;
-  latestToday: Assessment | null;
+  latest: Assessment | null;
+}
+
+export type AlertStatus = 'ACTIVE' | 'ACKNOWLEDGED' | 'RESOLVED';
+
+export interface WellbeingAlert {
+  id: number;
+  status: AlertStatus;
+  alertType: string;
+  triggeredAt: string;
+  acknowledgedAt: string | null;
+  resolvedAt: string | null;
+  employeeId: number;
+  employeeName: string;
+  employeeCode: string;
+  department: string | null;
+  managerId: number | null;
+  managerName: string | null;
+  acknowledgedByName: string | null;
+  resolvedByName: string | null;
+  assessmentCount: number;
+  assessmentDates: string[];
+  commentCount: number;
+  breakRequest: { id: number; status: RequestStatus } | null;
+}
+
+export interface AlertComment {
+  id: number;
+  comment: string;
+  createdAt: string;
+  authorId: number | null;
+  authorName: string | null;
+  authorRole: Role | null;
+}
+
+export interface WellbeingAlertDetail extends WellbeingAlert {
+  comments: AlertComment[];
+}
+
+/** The supportive "take a break" suggestion shown to an employee while a well-being alert is open. */
+export interface BreakRecommendation {
+  alertId: number;
+  triggeredAt: string;
+  request: { id: number; status: RequestStatus; managerComment: string | null } | null;
 }
 
 export interface SurveyQuestion {
@@ -86,6 +129,7 @@ export interface SupportRequest {
   status: RequestStatus;
   reason: string | null;
   managerComment: string | null;
+  alertId: number | null;
   resolvedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -102,7 +146,22 @@ export interface SupportRequest {
   meetingLocation: string | null;
 }
 
-export type MeetingStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
+export type MeetingStatus = 'SCHEDULED' | 'RESCHEDULED' | 'REJECTED' | 'CANCELLED' | 'COMPLETED';
+
+/** A meeting that can still take place. */
+export const isActiveMeeting = (status: MeetingStatus) => status === 'SCHEDULED' || status === 'RESCHEDULED';
+
+export interface MeetingHistoryEntry {
+  id: number;
+  action: 'RESCHEDULED' | 'REJECTED' | 'SNOOZED' | 'REMINDER_SENT';
+  previousScheduledAt: string | null;
+  newScheduledAt: string | null;
+  previousDurationMinutes: number | null;
+  snoozedUntil: string | null;
+  reason: string | null;
+  createdAt: string;
+  actorName: string | null;
+}
 
 export interface Meeting {
   id: number;
@@ -113,6 +172,11 @@ export interface Meeting {
   location: string | null;
   status: MeetingStatus;
   cancellationReason: string | null;
+  rejectionReason: string | null;
+  rescheduleCount: number;
+  /** The manager's reminder is postponed until this time. The meeting itself is unaffected. */
+  snoozedUntil: string | null;
+  snoozeCount: number;
   createdAt: string;
   updatedAt: string;
   employeeId: number;
@@ -151,6 +215,7 @@ export interface EmployeeDashboard {
   recentNotifications: AppNotification[];
   unreadNotifications: number;
   manager: ManagerSummary | null;
+  breakRecommendation: BreakRecommendation | null;
 }
 
 export interface TeamMember {
@@ -171,7 +236,13 @@ export interface TeamMember {
 }
 
 export interface ManagerDashboard {
-  summary: { assignedEmployees: number; pendingBreakRequests: number; pendingDiscussionRequests: number; upcomingMeetings: number };
+  summary: {
+    assignedEmployees: number;
+    pendingBreakRequests: number;
+    pendingDiscussionRequests: number;
+    upcomingMeetings: number;
+    activeAlerts: number;
+  };
   recentRequests: SupportRequest[];
   upcomingMeetings: Meeting[];
   recentActivity: { kind: 'REQUEST' | 'CHECK_IN' | 'SURVEY'; at: string; employeeName: string; description: string }[];
@@ -195,6 +266,7 @@ export interface AnalyticsSummary {
   surveySubmissionsThisCycle: number;
   pendingRequests: number;
   scheduledMeetings: number;
+  openAlerts: number;
   unassignedEmployees: number;
 }
 

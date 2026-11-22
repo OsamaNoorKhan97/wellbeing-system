@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db, withTransaction } from '../../db/pool';
-import { authenticate, authorize, currentUser } from '../../middleware/authenticate';
+import { authenticate, authorize, currentUser, HR_LEVEL } from '../../middleware/authenticate';
 import { ipOf, recordAudit } from '../../services/audit.service';
 import { settingDefinitions, type SettingKey } from '../../services/settings.service';
 import { AppError, asyncHandler, ok } from '../../utils/http';
@@ -14,12 +14,14 @@ async function listSettings() {
 }
 
 export const settingsRouter = Router();
-settingsRouter.use(authenticate, authorize('HR_ADMIN'));
+settingsRouter.use(authenticate);
 
-settingsRouter.get('/', asyncHandler(async (_req, res) => ok(res, await listSettings())));
+// HR can see the current configuration; only the Super Admin can change it.
+settingsRouter.get('/', authorize(...HR_LEVEL), asyncHandler(async (_req, res) => ok(res, await listSettings())));
 
 settingsRouter.put(
   '/',
+  authorize('SUPER_ADMIN'),
   asyncHandler(async (req, res) => {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const errors: { field: string; message: string }[] = [];
@@ -42,6 +44,16 @@ settingsRouter.put(
       if (known.rows.length === 0) errors.push({ field: 'organization_timezone', message: 'Unknown time zone. Use an IANA name such as Asia/Karachi.' });
     }
     if (changes.length === 0 && errors.length === 0) errors.push({ field: '', message: 'No settings were provided' });
+
+    // The indicator count can never exceed the three indicators and the final config must make sense as a whole.
+    if (errors.length === 0) {
+      const current = await db.query('SELECT key, value FROM application_settings');
+      const merged = new Map<string, string>(current.rows.map((r) => [r.key, r.value]));
+      for (const change of changes) merged.set(change.key, change.value);
+      if (Number(merged.get('alert_indicators_required')) > 3) {
+        errors.push({ field: 'alert_indicators_required', message: 'Choose 1, 2 or 3 indicators' });
+      }
+    }
     if (errors.length > 0) throw new AppError(422, 'VALIDATION_ERROR', 'Please correct the highlighted fields', errors);
 
     const actor = currentUser(req);

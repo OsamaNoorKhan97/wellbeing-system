@@ -1,4 +1,5 @@
-import { FiCalendar, FiClipboard, FiHeart, FiInbox, FiUserCheck, FiUsers } from 'react-icons/fi';
+import type { ReactNode } from 'react';
+import { FiAlertTriangle, FiCalendar, FiClipboard, FiHeart, FiInbox, FiUserCheck, FiUsers } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
 import { BarChart, DonutChart, LineChart, chartColors } from '../../components/charts';
 import { Alert, Card, ErrorState, PageHeader, Skeleton, StatCard } from '../../components/ui';
@@ -6,7 +7,15 @@ import { useFetch } from '../../hooks/useFetch';
 import { formatDay } from '../../lib/format';
 import { analyticsService } from '../../services';
 
-export function AdminDashboard() {
+interface Props {
+  title?: string;
+  /** Where this portal lives, so links stay inside it. */
+  base?: string;
+  /** Extra content shown above the figures (used by the Super Admin for the configuration summary). */
+  top?: ReactNode;
+}
+
+export function AdminDashboard({ title = 'HR Dashboard', base = '/admin', top }: Props) {
   const summary = useFetch(() => analyticsService.summary(), []);
   const trends = useFetch(() => analyticsService.trends(30), []);
   const survey = useFetch(() => analyticsService.survey(), []);
@@ -25,7 +34,8 @@ export function AdminDashboard() {
 
   return (
     <>
-      <PageHeader title="HR / Admin Dashboard" description="Organization-wide activity. Figures are totals and averages; individual responses are never shown." />
+      <PageHeader title={title} description="Organization-wide activity. Figures are totals and averages; individual responses are never shown." />
+      {top}
       {error ? (
         <ErrorState message={error} onRetry={retry} />
       ) : (
@@ -34,7 +44,7 @@ export function AdminDashboard() {
             <div className="mb-6">
               <Alert tone="warning">
                 {s.unassignedEmployees} employee{s.unassignedEmployees === 1 ? ' has' : 's have'} no Line Manager and cannot send requests.{' '}
-                <Link to="/admin/assignments" className="font-medium underline">
+                <Link to={`${base}/assignments`} className="font-medium underline">
                   Assign a manager
                 </Link>
               </Alert>
@@ -43,7 +53,7 @@ export function AdminDashboard() {
 
           <div className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {!s ? (
-              [0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-20" />)
+              [0, 1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="h-20" />)
             ) : (
               <>
                 <StatCard label="Total Employees" value={s.totalEmployees} icon={<FiUsers />} />
@@ -52,6 +62,7 @@ export function AdminDashboard() {
                 <StatCard label="Survey Submissions" value={s.surveySubmissions} icon={<FiClipboard />} tone="blue" hint={`${s.surveySubmissionsThisCycle} in the current cycle`} />
                 <StatCard label="Pending Employee Requests" value={s.pendingRequests} icon={<FiInbox />} tone="amber" />
                 <StatCard label="Scheduled Meetings" value={s.scheduledMeetings} icon={<FiCalendar />} tone="slate" />
+                <StatCard label="Open Well-Being Alerts" value={s.openAlerts} icon={<FiAlertTriangle />} tone={s.openAlerts > 0 ? 'red' : 'green'} hint={s.openAlerts > 0 ? 'Employees who may need support' : 'No one flagged right now'} />
               </>
             )}
           </div>

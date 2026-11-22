@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { authenticate, authorize } from '../../middleware/authenticate';
+import { authenticate, authorize, HR_LEVEL } from '../../middleware/authenticate';
 import { validate } from '../../middleware/validate';
 import { asyncHandler, ok } from '../../utils/http';
 import * as analytics from './analytics.service';
 
 export const analyticsRouter = Router();
-analyticsRouter.use(authenticate, authorize('HR_ADMIN'));
+analyticsRouter.use(authenticate, authorize(...HR_LEVEL));
 
 analyticsRouter.get('/summary', asyncHandler(async (_req, res) => ok(res, await analytics.getSummary())));
 

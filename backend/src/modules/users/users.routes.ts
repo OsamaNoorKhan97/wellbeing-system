@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { authenticate, authorize, currentUser } from '../../middleware/authenticate';
+import { authenticate, authorize, currentUser, HR_LEVEL } from '../../middleware/authenticate';
 import { validate } from '../../middleware/validate';
 import { ipOf } from '../../services/audit.service';
 import { asyncHandler, created, ok, pageMeta, paginationSchema, parseId } from '../../utils/http';
 import { passwordRule } from '../../utils/password';
 import * as users from './users.service';
 
-const roleSchema = z.enum(['EMPLOYEE', 'LINE_MANAGER', 'HR_ADMIN']);
+const roleSchema = z.enum(['EMPLOYEE', 'LINE_MANAGER', 'HR', 'SUPER_ADMIN']);
 
 const listQuery = paginationSchema.extend({
   search: z.string().trim().max(100).optional(),
@@ -28,7 +28,7 @@ const createBody = z.object({
 });
 
 export const usersRouter = Router();
-usersRouter.use(authenticate, authorize('HR_ADMIN'));
+usersRouter.use(authenticate, authorize(...HR_LEVEL));
 
 usersRouter.get(
   '/',

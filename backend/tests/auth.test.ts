@@ -1,4 +1,4 @@
-import { after, before, describe, it } from 'node:test';
+﻿import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { api, db, makeUser, PASSWORD, startServer, stopServer } from './helpers';
 
@@ -79,7 +79,7 @@ describe('Authentication', () => {
   });
 
   it('blocks deactivated accounts at login and on existing sessions', async () => {
-    const admin = await makeUser('HR_ADMIN');
+    const admin = await makeUser('HR');
     const employee = await makeUser('EMPLOYEE');
     assert.equal((await api('GET', '/auth/me', { token: employee.token })).status, 200);
 

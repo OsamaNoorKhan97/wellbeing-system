@@ -5,7 +5,7 @@ import { authenticate, authorize, currentUser } from '../../middleware/authentic
 import { validate } from '../../middleware/validate';
 import { getSettings } from '../../services/settings.service';
 import { asyncHandler, ok } from '../../utils/http';
-import { listMeetings } from '../meetings/meetings.service';
+import { listMeetings, processDueReminders } from '../meetings/meetings.service';
 import { listRequests } from '../requests/requests.service';
 
 const TEAM = 'SELECT employee_id FROM employee_manager_assignments WHERE manager_id = $1 AND is_active';
@@ -72,12 +72,14 @@ managersRouter.get(
   '/me/dashboard',
   asyncHandler(async (req, res) => {
     const user = currentUser(req);
+    await processDueReminders();
     const [counts, requests, meetings, activity] = await Promise.all([
       db.query(
         `SELECT (SELECT count(*)::int FROM employee_manager_assignments WHERE manager_id = $1 AND is_active) AS "assignedEmployees",
                 (SELECT count(*)::int FROM support_requests WHERE manager_id = $1 AND type = 'BREAK' AND status = 'PENDING') AS "pendingBreakRequests",
                 (SELECT count(*)::int FROM support_requests WHERE manager_id = $1 AND type = 'DISCUSSION' AND status = 'PENDING') AS "pendingDiscussionRequests",
-                (SELECT count(*)::int FROM meetings WHERE manager_id = $1 AND status = 'SCHEDULED' AND scheduled_at >= now()) AS "upcomingMeetings"`,
+                (SELECT count(*)::int FROM meetings WHERE manager_id = $1 AND status IN ('SCHEDULED', 'RESCHEDULED') AND scheduled_at >= now()) AS "upcomingMeetings",
+                (SELECT count(*)::int FROM wellbeing_alerts WHERE manager_id = $1 AND status = 'ACTIVE') AS "activeAlerts"`,
         [user.id],
       ),
       listRequests(user, { page: 1, pageSize: 5 }),

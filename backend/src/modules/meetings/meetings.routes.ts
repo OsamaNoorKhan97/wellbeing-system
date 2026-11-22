@@ -28,6 +28,7 @@ meetingsRouter.get(
   validate({ query: listQuery }),
   asyncHandler(async (req, res) => {
     const query = res.locals.query as z.infer<typeof listQuery>;
+    await meetings.processDueReminders();
     const { items, total } = await meetings.listMeetings(currentUser(req), query);
     ok(res, items, pageMeta(query.page, query.pageSize, total));
   }),
@@ -57,6 +58,48 @@ meetingsRouter.post(
   asyncHandler(async (req, res) =>
     ok(res, await meetings.cancelMeeting(currentUser(req), parseId(req.params.id), req.body.reason || null, ipOf(req))),
   ),
+);
+
+meetingsRouter.post(
+  '/:id/reject',
+  authorize('LINE_MANAGER'),
+  validate({ body: z.object({ reason: z.string().trim().max(500).nullish() }) }),
+  asyncHandler(async (req, res) =>
+    ok(res, await meetings.rejectMeeting(currentUser(req), parseId(req.params.id), req.body.reason || null, ipOf(req))),
+  ),
+);
+
+meetingsRouter.post(
+  '/:id/reschedule',
+  authorize('LINE_MANAGER'),
+  validate({
+    body: z.object({
+      scheduledAt: meetingFields.scheduledAt,
+      durationMinutes: z.coerce.number().int().min(5).max(480).optional(),
+      reason: z.string().trim().max(500).nullish(),
+    }),
+  }),
+  asyncHandler(async (req, res) => ok(res, await meetings.rescheduleMeeting(currentUser(req), parseId(req.params.id), req.body, ipOf(req)))),
+);
+
+// Either a preset length in minutes (1 hour, 3 hours, 1 day) or a custom date and time.
+const snoozeBody = z
+  .object({
+    minutes: z.coerce.number().int().min(1).max(525_600).optional(),
+    until: z.coerce.date({ errorMap: () => ({ message: 'Enter a valid date and time' }) }).optional(),
+  })
+  .refine((value) => (value.minutes !== undefined) !== (value.until !== undefined), { message: 'Provide either minutes or a custom date and time' });
+
+meetingsRouter.post(
+  '/:id/snooze',
+  authorize('LINE_MANAGER'),
+  validate({ body: snoozeBody }),
+  asyncHandler(async (req, res) => ok(res, await meetings.snoozeMeeting(currentUser(req), parseId(req.params.id), req.body, ipOf(req)))),
+);
+
+meetingsRouter.get(
+  '/:id/history',
+  asyncHandler(async (req, res) => ok(res, await meetings.getMeetingHistory(currentUser(req), parseId(req.params.id)))),
 );
 
 meetingsRouter.post(

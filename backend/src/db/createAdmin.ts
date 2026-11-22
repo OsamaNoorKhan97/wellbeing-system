@@ -5,19 +5,21 @@ import { closePool, withTransaction } from './pool';
 
 /** Creates the first HR/Admin account from ADMIN_* environment variables, for installations that do not load the sample data. */
 async function main() {
-  const { ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME, ADMIN_EMPLOYEE_ID } = process.env;
-  if (!ADMIN_EMAIL || !ADMIN_PASSWORD) throw new Error('Set ADMIN_EMAIL and ADMIN_PASSWORD (and optionally ADMIN_NAME, ADMIN_EMPLOYEE_ID).');
+  const { ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME, ADMIN_EMPLOYEE_ID, ADMIN_ROLE } = process.env;
+  if (!ADMIN_EMAIL || !ADMIN_PASSWORD) throw new Error('Set ADMIN_EMAIL and ADMIN_PASSWORD (and optionally ADMIN_NAME, ADMIN_EMPLOYEE_ID, ADMIN_ROLE).');
   if (!passwordRule.test(ADMIN_PASSWORD)) throw new Error(passwordRule.description);
+  const role = (ADMIN_ROLE || 'HR').toUpperCase();
+  if (role !== 'HR' && role !== 'SUPER_ADMIN') throw new Error('ADMIN_ROLE must be HR or SUPER_ADMIN.');
   const id = await withTransaction((tx) =>
     insertUser(tx, {
-      fullName: ADMIN_NAME || 'HR Administrator',
-      employeeId: ADMIN_EMPLOYEE_ID || 'HR001',
+      fullName: ADMIN_NAME || (role === 'SUPER_ADMIN' ? 'Super Administrator' : 'HR Administrator'),
+      employeeId: ADMIN_EMPLOYEE_ID || (role === 'SUPER_ADMIN' ? 'SUPER001' : 'HR001'),
       email: ADMIN_EMAIL,
       password: ADMIN_PASSWORD,
-      role: 'HR_ADMIN',
+      role,
     }),
   );
-  console.log(`HR/Admin account created (user id ${id}, ${ADMIN_EMAIL}).`);
+  console.log(`${role} account created (user id ${id}, ${ADMIN_EMAIL}).`);
 }
 
 main()

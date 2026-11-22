@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import {
-  FiBarChart2, FiBell, FiCalendar, FiClipboard, FiFileText, FiHeart, FiHome, FiInbox, FiLifeBuoy, FiList, FiSettings, FiShield,
-  FiUser, FiUserCheck, FiUsers,
+  FiAlertTriangle, FiBarChart2, FiBell, FiCalendar, FiClipboard, FiFileText, FiHeart, FiHome, FiInbox, FiLifeBuoy, FiList, FiSettings,
+  FiShield, FiSliders, FiUser, FiUserCheck, FiUsers,
 } from 'react-icons/fi';
 import type { Role } from '../../types';
 
@@ -28,12 +28,14 @@ export const navigation: Record<Role, NavItem[]> = {
   LINE_MANAGER: [
     { path: '/manager', label: 'Dashboard', icon: <FiHome /> },
     { path: '/manager/team', label: 'Employee Overview', icon: <FiUsers /> },
+    { path: '/manager/alerts', label: 'Well-Being Alerts', icon: <FiAlertTriangle /> },
     { path: '/manager/requests', label: 'Employee Requests', icon: <FiInbox /> },
     { path: '/manager/meetings', label: 'Meetings', icon: <FiCalendar /> },
     ...shared('/manager'),
   ],
-  HR_ADMIN: [
+  HR: [
     { path: '/admin', label: 'Dashboard', icon: <FiHome /> },
+    { path: '/admin/alerts', label: 'Well-Being Alerts', icon: <FiAlertTriangle /> },
     { path: '/admin/users', label: 'User Management', icon: <FiUsers /> },
     { path: '/admin/assignments', label: 'Assignments', icon: <FiUserCheck /> },
     { path: '/admin/surveys', label: 'Survey Management', icon: <FiFileText /> },
@@ -41,5 +43,16 @@ export const navigation: Record<Role, NavItem[]> = {
     { path: '/admin/settings', label: 'Settings', icon: <FiSettings /> },
     { path: '/admin/audit-log', label: 'Audit Log', icon: <FiList /> },
     ...shared('/admin'),
+  ],
+  SUPER_ADMIN: [
+    { path: '/super-admin', label: 'Dashboard', icon: <FiHome /> },
+    { path: '/super-admin/configuration', label: 'System Configuration', icon: <FiSliders /> },
+    { path: '/super-admin/alerts', label: 'Well-Being Alerts', icon: <FiAlertTriangle /> },
+    { path: '/super-admin/users', label: 'User Management', icon: <FiUsers /> },
+    { path: '/super-admin/assignments', label: 'Assignments', icon: <FiUserCheck /> },
+    { path: '/super-admin/surveys', label: 'Survey Management', icon: <FiFileText /> },
+    { path: '/super-admin/analytics', label: 'Analytics', icon: <FiBarChart2 /> },
+    { path: '/super-admin/audit-log', label: 'Activity & Configuration Log', icon: <FiList /> },
+    ...shared('/super-admin'),
   ],
 };

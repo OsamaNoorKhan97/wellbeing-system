@@ -4,13 +4,14 @@ import { getActiveManager } from '../../services/assignment.service';
 import { recordAudit } from '../../services/audit.service';
 import { notify } from '../../services/notification.service';
 import { conflict, notFound, offsetOf } from '../../utils/http';
+import { assertOwnOpenAlert } from '../alerts/alerts.service';
 import { insertMeeting, type MeetingInput } from '../meetings/meetings.service';
 
 export type RequestType = 'BREAK' | 'DISCUSSION';
 export type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'SCHEDULED' | 'COMPLETED' | 'CANCELLED';
 
 const REQUEST_SELECT = `
-  SELECT sr.id, sr.type, sr.status, sr.reason, sr.manager_comment AS "managerComment",
+  SELECT sr.id, sr.type, sr.status, sr.reason, sr.manager_comment AS "managerComment", sr.alert_id AS "alertId",
          sr.resolved_at AS "resolvedAt", sr.created_at AS "createdAt", sr.updated_at AS "updatedAt",
          e.id AS "employeeId", e.full_name AS "employeeName", e.employee_code AS "employeeCode",
          ep.department AS "employeeDepartment",
@@ -21,7 +22,7 @@ const REQUEST_SELECT = `
     JOIN users e ON e.id = sr.employee_id
     JOIN users m ON m.id = sr.manager_id
     LEFT JOIN employee_profiles ep ON ep.user_id = e.id
-    LEFT JOIN meetings mt ON mt.request_id = sr.id AND mt.status <> 'CANCELLED'`;
+    LEFT JOIN meetings mt ON mt.request_id = sr.id AND mt.status NOT IN ('CANCELLED', 'REJECTED')`;
 
 const ownerColumn = (user: AuthUser) => (user.role === 'LINE_MANAGER' ? 'sr.manager_id' : 'sr.employee_id');
 
@@ -30,8 +31,18 @@ async function findRequest(tx: Db, id: number) {
   return rows[0] ?? null;
 }
 
-export async function createRequest(employee: AuthUser, type: RequestType, reason: string | null, ip: string | null) {
+export async function createRequest(
+  employee: AuthUser,
+  type: RequestType,
+  reason: string | null,
+  ip: string | null,
+  alertId: number | null = null,
+) {
   return withTransaction(async (tx) => {
+    if (alertId !== null) {
+      if (type !== 'BREAK') throw conflict('WRONG_REQUEST_TYPE', 'Only a break can be requested from a well-being recommendation');
+      await assertOwnOpenAlert(tx, employee.id, alertId);
+    }
     const manager = await getActiveManager(employee.id, tx);
     if (!manager) {
       throw conflict('NO_MANAGER_ASSIGNED', 'You do not have a Line Manager assigned yet. Please contact HR so your request can be routed.');
@@ -42,8 +53,8 @@ export async function createRequest(employee: AuthUser, type: RequestType, reaso
     }
 
     const { rows } = await tx.query(
-      'INSERT INTO support_requests (employee_id, manager_id, type, reason) VALUES ($1, $2, $3, $4) RETURNING id',
-      [employee.id, manager.id, type, reason],
+      'INSERT INTO support_requests (employee_id, manager_id, type, reason, alert_id) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+      [employee.id, manager.id, type, reason, alertId],
     );
     const requestId: number = rows[0].id;
     await notify(tx, {
@@ -53,12 +64,12 @@ export async function createRequest(employee: AuthUser, type: RequestType, reaso
       title: type === 'BREAK' ? 'New break request' : 'New discussion request',
       message:
         type === 'BREAK'
-          ? `${employee.fullName} has requested a break.`
+          ? `${employee.fullName} has requested a break${alertId ? ' after a well-being alert recommended one' : ''}.`
           : `${employee.fullName} would like to have a discussion with you.`,
       entityType: 'support_request',
       entityId: requestId,
     });
-    await recordAudit(tx, { actorId: employee.id, action: 'REQUEST_CREATED', entityType: 'support_request', entityId: requestId, details: { type }, ip });
+    await recordAudit(tx, { actorId: employee.id, action: 'REQUEST_CREATED', entityType: 'support_request', entityId: requestId, details: { type, alertId }, ip });
     return findRequest(tx, requestId);
   });
 }

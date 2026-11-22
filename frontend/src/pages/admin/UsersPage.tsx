@@ -12,17 +12,21 @@ import { assignmentService, userService } from '../../services';
 import type { Role, User, UserDetail } from '../../types';
 import { validatePassword } from '../auth/RegisterPage';
 
-const roles: Role[] = ['EMPLOYEE', 'LINE_MANAGER', 'HR_ADMIN'];
-const roleTones = { EMPLOYEE: 'slate', LINE_MANAGER: 'violet', HR_ADMIN: 'brand' } as const;
+const roles: Role[] = ['EMPLOYEE', 'LINE_MANAGER', 'HR', 'SUPER_ADMIN'];
+const roleTones = { EMPLOYEE: 'slate', LINE_MANAGER: 'violet', HR: 'brand', SUPER_ADMIN: 'amber' } as const;
+
+/** Only a Super Admin may create, promote or change Super Admin accounts; the API enforces the same rule. */
+const rolesFor = (viewer: Role | undefined): Role[] => (viewer === 'SUPER_ADMIN' ? roles : roles.filter((role) => role !== 'SUPER_ADMIN'));
 
 function CreateUserModal({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
   const toast = useToast();
+  const { user: viewer } = useAuth();
   const empty = { fullName: '', employeeId: '', email: '', role: 'EMPLOYEE' as Role, department: '', designation: '', password: '' };
   const [form, setForm] = useState(empty);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const needsJob = form.role !== 'HR_ADMIN';
+  const needsJob = form.role === 'EMPLOYEE' || form.role === 'LINE_MANAGER';
 
   const bind = (key: keyof typeof form) => ({
     value: form[key],
@@ -95,7 +99,7 @@ function CreateUserModal({ open, onClose, onCreated }: { open: boolean; onClose:
         <Field label="Role" required>
           {(props) => (
             <select {...props} {...bind('role')}>
-              {roles.map((role) => (
+              {rolesFor(viewer?.role).map((role) => (
                 <option key={role} value={role}>
                   {roleLabels[role]}
                 </option>
@@ -341,7 +345,7 @@ export function UsersPage() {
                               {user.managerId ? 'Reassign' : 'Assign'}
                             </Button>
                           )}
-                          {!isSelf && (
+                          {!isSelf && (user.role !== 'SUPER_ADMIN' || me?.role === 'SUPER_ADMIN') && (
                             <>
                               <Button
                                 size="sm"
@@ -419,7 +423,7 @@ export function UsersPage() {
             <Field label={`Role for ${roleTarget.fullName}`}>
               {(props) => (
                 <select {...props} className="input" value={newRole} onChange={(e) => setNewRole(e.target.value as Role)}>
-                  {roles.map((item) => (
+                  {rolesFor(me?.role).map((item) => (
                     <option key={item} value={item}>
                       {roleLabels[item]}
                     </option>

@@ -1,7 +1,7 @@
 import { db, withTransaction, type Db } from '../../db/pool';
 import type { AuthUser, Role } from '../../middleware/authenticate';
 import { recordAudit } from '../../services/audit.service';
-import { badRequest, conflict, notFound, offsetOf } from '../../utils/http';
+import { badRequest, conflict, forbidden, notFound, offsetOf } from '../../utils/http';
 import { hashPassword } from '../../utils/password';
 import { cancelMeetingsForUser } from '../meetings/meetings.service';
 
@@ -125,7 +125,10 @@ export async function getUserDetail(id: number) {
   return { ...user, activity: rows[0] };
 }
 
+const SUPER_ADMIN_ONLY = 'Only a Super Admin can create, change or deactivate Super Admin accounts';
+
 export async function createUser(actor: AuthUser, input: NewUser, ip: string | null) {
+  if (input.role === 'SUPER_ADMIN' && actor.role !== 'SUPER_ADMIN') throw forbidden(SUPER_ADMIN_ONLY);
   return withTransaction(async (tx) => {
     const userId = await insertUser(tx, input);
     await recordAudit(tx, { actorId: actor.id, action: 'USER_CREATED', entityType: 'user', entityId: userId, details: { role: input.role }, ip });
@@ -136,6 +139,8 @@ export async function createUser(actor: AuthUser, input: NewUser, ip: string | n
 export async function setUserStatus(actor: AuthUser, userId: number, isActive: boolean, ip: string | null) {
   if (actor.id === userId) throw badRequest('You cannot change the status of your own account');
   return withTransaction(async (tx) => {
+    const target = await findUserById(userId, tx);
+    if (target?.role === 'SUPER_ADMIN' && actor.role !== 'SUPER_ADMIN') throw forbidden(SUPER_ADMIN_ONLY);
     const { rows } = await tx.query('UPDATE users SET is_active = $2 WHERE id = $1 RETURNING id', [userId, isActive]);
     if (rows.length === 0) throw notFound('User');
     await recordAudit(tx, {
@@ -154,6 +159,7 @@ export async function setUserRole(actor: AuthUser, userId: number, role: Role, i
   return withTransaction(async (tx) => {
     const user = await findUserById(userId, tx);
     if (!user) throw notFound('User');
+    if ((user.role === 'SUPER_ADMIN' || role === 'SUPER_ADMIN') && actor.role !== 'SUPER_ADMIN') throw forbidden(SUPER_ADMIN_ONLY);
     if (user.role === role) return user;
 
     await tx.query('UPDATE users SET role_id = (SELECT id FROM roles WHERE name = $2) WHERE id = $1', [userId, role]);

@@ -5,6 +5,7 @@ import express from 'express';
 import helmet from 'helmet';
 import { env } from './config/env';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { alertsRouter } from './modules/alerts/alerts.routes';
 import { analyticsRouter } from './modules/analytics/analytics.routes';
 import { assessmentsRouter } from './modules/assessments/assessments.routes';
 import { assignmentsRouter } from './modules/assignments/assignments.routes';
@@ -46,6 +47,7 @@ export function createApp() {
   api.use('/settings', settingsRouter);
   api.use('/analytics', analyticsRouter);
   api.use('/audit-logs', auditRouter);
+  api.use('/alerts', alertsRouter);
   api.use(notFoundHandler);
   app.use('/api/v1', api);
 

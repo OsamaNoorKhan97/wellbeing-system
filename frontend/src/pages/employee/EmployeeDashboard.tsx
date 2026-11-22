@@ -1,11 +1,12 @@
-import { FiCalendar, FiCheckCircle, FiClipboard, FiCoffee, FiHeart, FiMessageSquare } from 'react-icons/fi';
+import { FiCalendar, FiCheckCircle, FiClipboard, FiClock, FiCoffee, FiHeart, FiMessageSquare } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
+import { BreakRecommendationCard } from '../../components/BreakRecommendationCard';
 import { RatingChip } from '../../components/RatingPicker';
 import { MeetingItem, RequestOutcome, RequestTypeLabel } from '../../components/RequestBits';
 import { Alert, Badge, Card, EmptyState, ErrorState, PageHeader, RequestStatusBadge, Skeleton } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import { useFetch } from '../../hooks/useFetch';
-import { formatDate, formatDateTime, timeAgo } from '../../lib/format';
+import { describeHours, formatDate, formatDateTime, timeAgo } from '../../lib/format';
 import { ratingOption, ratingScales, type RatingCategory } from '../../lib/ratings';
 import { employeeService } from '../../services';
 
@@ -59,15 +60,23 @@ export function EmployeeDashboard() {
             </div>
           )}
 
+          {data.breakRecommendation && (
+            <div className="lg:col-span-3">
+              <BreakRecommendationCard recommendation={data.breakRecommendation} canRequest={Boolean(data.manager)} onRequested={reload} />
+            </div>
+          )}
+
           <Card
-            title="Today's well-being"
+            title="Latest well-being check"
             className="lg:col-span-2"
-            actions={<Badge tone={data.assessmentStatus.usedToday > 0 ? 'green' : 'amber'}>{data.assessmentStatus.usedToday > 0 ? 'Checked in today' : 'Not checked in yet'}</Badge>}
+            actions={
+              <Badge tone={data.assessmentStatus.canSubmit ? 'amber' : 'green'}>{data.assessmentStatus.canSubmit ? 'Check-in available' : 'Checked in'}</Badge>
+            }
           >
-            {data.assessmentStatus.latestToday ? (
+            {data.assessmentStatus.latest ? (
               <div className="grid gap-3 sm:grid-cols-3">
                 {categories.map((category) => {
-                  const value = data.assessmentStatus.latestToday![category];
+                  const value = data.assessmentStatus.latest![category];
                   const option = ratingOption(category, value);
                   return (
                     <div key={category} className="flex items-center gap-3 rounded-lg bg-slate-50 px-4 py-3">
@@ -87,10 +96,17 @@ export function EmployeeDashboard() {
             ) : (
               <EmptyState icon={<FiHeart className="h-5 w-5" />} title="How are you today?" description="Your check-in takes less than a minute and is visible only to you." action={<Link to="/employee/well-being" className="rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-800">Start check-in</Link>} />
             )}
-            <p className="mt-4 text-xs text-slate-500">
-              {data.assessmentStatus.canSubmit
-                ? `${data.assessmentStatus.remaining} of ${data.assessmentStatus.limit} check-in${data.assessmentStatus.limit === 1 ? '' : 's'} left today.`
-                : `Daily limit reached. Next check-in available ${formatDateTime(data.assessmentStatus.nextAvailableAt)}.`}
+            <p className="mt-4 flex items-center gap-2 text-sm text-slate-600">
+              <FiClock className="shrink-0 text-slate-400" aria-hidden />
+              {data.assessmentStatus.canSubmit ? (
+                <span>
+                  <span className="font-medium text-ink">Your next check-in is available now.</span> Check-ins are allowed every {describeHours(data.assessmentStatus.intervalHours)}.
+                </span>
+              ) : (
+                <span>
+                  Next well-being check available on <span className="font-medium text-ink">{formatDateTime(data.assessmentStatus.nextAvailableAt)}</span>. Check-ins are allowed every {describeHours(data.assessmentStatus.intervalHours)}.
+                </span>
+              )}
             </p>
           </Card>
 
@@ -103,8 +119,8 @@ export function EmployeeDashboard() {
                 <p className="font-semibold text-ink">{data.surveyStatus.completed ? 'Completed' : 'Waiting for your answers'}</p>
                 <p className="mt-0.5 text-slate-500">
                   {data.surveyStatus.completed
-                    ? `Submitted ${formatDate(data.surveyStatus.lastSubmittedAt)}. Next survey opens ${formatDate(data.surveyStatus.nextAvailableAt)}.`
-                    : `${data.surveyStatus.activeQuestionCount} short questions about your work experience.`}
+                    ? `Submitted ${formatDate(data.surveyStatus.lastSubmittedAt)}. Next survey available on ${formatDateTime(data.surveyStatus.nextAvailableAt)}.`
+                    : `${data.surveyStatus.activeQuestionCount} short questions about your work experience. Available now; the survey repeats every ${data.surveyStatus.frequencyDays} days.`}
                 </p>
                 {!data.surveyStatus.completed && (
                   <Link to="/employee/survey" className="mt-2 inline-block text-sm font-medium text-brand-700 hover:underline">

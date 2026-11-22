@@ -1,4 +1,4 @@
-import { after, before, describe, it } from 'node:test';
+﻿import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { api, assign, makeUser, startServer, stopServer, type TestUser } from './helpers';
 
@@ -7,7 +7,7 @@ describe('Role-based access control', () => {
 
   before(async () => {
     await startServer();
-    admin = await makeUser('HR_ADMIN');
+    admin = await makeUser('HR');
     managerA = await makeUser('LINE_MANAGER', 'Manager A');
     managerB = await makeUser('LINE_MANAGER', 'Manager B');
     alice = await makeUser('EMPLOYEE', 'Alice');
@@ -40,8 +40,8 @@ describe('Role-based access control', () => {
       assert.equal((await api(method, path, { token: admin.token })).status, 200, `admin ${path}`);
     }
     assert.equal((await api('POST', '/surveys/questions', { token: alice.token, body: { text: 'Is this allowed at all?', category: 'Test' } })).status, 403);
-    assert.equal((await api('PUT', '/settings', { token: managerA.token, body: { daily_assessment_limit: 5 } })).status, 403);
-    assert.equal((await api('PATCH', `/users/${alice.id}/role`, { token: alice.token, body: { role: 'HR_ADMIN' } })).status, 403);
+    assert.equal((await api('PUT', '/settings', { token: managerA.token, body: { assessment_interval_hours: 48 } })).status, 403);
+    assert.equal((await api('PATCH', `/users/${alice.id}/role`, { token: alice.token, body: { role: 'HR' } })).status, 403);
   });
 
   it('keeps employee-only and manager-only endpoints to their roles', async () => {

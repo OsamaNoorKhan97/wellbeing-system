@@ -1,4 +1,4 @@
-import { after, before, describe, it } from 'node:test';
+﻿import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { api, assign, makeUser, PASSWORD, startServer, stopServer, type TestUser } from './helpers';
 
@@ -7,7 +7,7 @@ describe('HR/Admin administration', () => {
 
   before(async () => {
     await startServer();
-    admin = await makeUser('HR_ADMIN', 'Hana Admin');
+    admin = await makeUser('HR', 'Hana Admin');
     manager = await makeUser('LINE_MANAGER', 'Mona Manager');
     employees = [];
     for (const name of ['Adam Zed', 'Bella Young', 'Carl Xavier', 'Dina West']) employees.push(await makeUser('EMPLOYEE', name));

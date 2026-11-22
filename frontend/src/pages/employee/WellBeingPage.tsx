@@ -1,13 +1,15 @@
 import { useState, type FormEvent } from 'react';
 import { FiCheckCircle, FiClock } from 'react-icons/fi';
+import { BreakRecommendationCard } from '../../components/BreakRecommendationCard';
 import { RatingChip, RatingPicker } from '../../components/RatingPicker';
-import { Alert, Button, Card, EmptyState, ErrorState, PageHeader, PageLoader, Pagination } from '../../components/ui';
+import { Button, Card, EmptyState, ErrorState, PageHeader, PageLoader, Pagination } from '../../components/ui';
 import { useToast } from '../../context/ToastContext';
 import { useFetch } from '../../hooks/useFetch';
 import { ApiError, errorMessage } from '../../lib/api';
-import { formatDateTime } from '../../lib/format';
+import { describeHours, formatDateTime } from '../../lib/format';
 import type { RatingCategory } from '../../lib/ratings';
 import { assessmentService } from '../../services';
+import type { BreakRecommendation } from '../../types';
 
 const categories: RatingCategory[] = ['mood', 'stress', 'energy'];
 type Ratings = Record<RatingCategory, number | null>;
@@ -22,7 +24,7 @@ export function WellBeingPage() {
   const [ratings, setRatings] = useState<Ratings>(emptyRatings);
   const [showErrors, setShowErrors] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [justSubmitted, setJustSubmitted] = useState(false);
+  const [recommendation, setRecommendation] = useState<BreakRecommendation | null>(null);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -32,16 +34,16 @@ export function WellBeingPage() {
     }
     setSubmitting(true);
     try {
-      await assessmentService.submit({ mood: ratings.mood!, stress: ratings.stress!, energy: ratings.energy! });
+      const result = await assessmentService.submit({ mood: ratings.mood!, stress: ratings.stress!, energy: ratings.energy! });
       toast.success('Check-in saved. Thank you for taking a moment for yourself.');
       setRatings(emptyRatings);
       setShowErrors(false);
-      setJustSubmitted(true);
+      setRecommendation(result.data.recommendation);
       setPage(1);
       history.reload();
     } catch (error) {
-      // The limit may have been reached in another tab or lowered by HR since the page loaded.
-      toast.error(error instanceof ApiError && error.code === 'DAILY_LIMIT_REACHED' ? error.message : errorMessage(error));
+      // The interval may not have passed yet (for example a check-in made in another tab) or may have been changed by the Super Admin.
+      toast.error(error instanceof ApiError && error.code === 'ASSESSMENT_NOT_YET_AVAILABLE' ? error.message : errorMessage(error));
     } finally {
       setSubmitting(false);
       status.reload();
@@ -53,13 +55,24 @@ export function WellBeingPage() {
     <>
       <PageHeader title="Well-Being Check" description="Rate how you feel right now. Your individual ratings are visible only to you." />
 
+      {recommendation && (
+        <div className="mb-6">
+          <BreakRecommendationCard
+            recommendation={recommendation}
+            onRequested={() => {
+              setRecommendation(null);
+              history.reload();
+            }}
+          />
+        </div>
+      )}
+
       {status.error ? (
         <ErrorState message={status.error} onRetry={status.reload} />
       ) : !current ? (
         <PageLoader />
       ) : current.canSubmit ? (
         <form onSubmit={submit} noValidate className="space-y-4">
-          {justSubmitted && <Alert tone="success">Your check-in was saved. You can submit {current.remaining} more today.</Alert>}
           {categories.map((category) => (
             <RatingPicker
               key={category}
@@ -70,9 +83,7 @@ export function WellBeingPage() {
             />
           ))}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-slate-500">
-              {current.remaining} of {current.limit} check-in{current.limit === 1 ? '' : 's'} left today
-            </p>
+            <p className="text-sm text-slate-500">Mood, stress and energy are submitted together. Check-ins are allowed every {describeHours(current.intervalHours)}.</p>
             <Button type="submit" loading={submitting}>
               Submit check-in
             </Button>
@@ -84,20 +95,20 @@ export function WellBeingPage() {
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 text-2xl text-emerald-600" aria-hidden>
               <FiCheckCircle />
             </span>
-            <h2 className="text-lg font-semibold">You have completed today's check-in{current.limit === 1 ? '' : 's'}</h2>
+            <h2 className="text-lg font-semibold">Your check-in is recorded</h2>
             <p className="max-w-md text-sm text-slate-600">
-              You have used {current.usedToday} of {current.limit} check-in{current.limit === 1 ? '' : 's'} allowed per day.
+              Well-being check-ins are available every {describeHours(current.intervalHours)}. Your last one was {formatDateTime(current.lastSubmittedAt)}.
             </p>
             <p className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-medium text-slate-700">
               <FiClock aria-hidden />
-              You can submit again from {formatDateTime(current.nextAvailableAt)}
+              Next check-in available on {formatDateTime(current.nextAvailableAt)}
             </p>
-            {current.latestToday && (
+            {current.latest && (
               <div className="mt-2 flex flex-wrap justify-center gap-x-6 gap-y-2 border-t border-slate-100 pt-4">
                 {categories.map((category) => (
                   <span key={category} className="text-sm text-slate-500">
                     <span className="mr-2 capitalize">{category}:</span>
-                    <RatingChip category={category} value={current.latestToday![category]} />
+                    <RatingChip category={category} value={current.latest![category]} />
                   </span>
                 ))}
               </div>

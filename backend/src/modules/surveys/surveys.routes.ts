@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { authenticate, authorize, currentUser } from '../../middleware/authenticate';
+import { authenticate, authorize, currentUser, HR_LEVEL } from '../../middleware/authenticate';
 import { validate } from '../../middleware/validate';
 import { ipOf } from '../../services/audit.service';
 import { asyncHandler, created, ok, pageMeta, paginationSchema, parseId } from '../../utils/http';
@@ -24,23 +24,23 @@ surveysRouter.use(authenticate);
 
 surveysRouter.get(
   '/questions',
-  authorize('EMPLOYEE', 'HR_ADMIN'),
+  authorize('EMPLOYEE', ...HR_LEVEL),
   asyncHandler(async (req, res) => {
-    const includeInactive = currentUser(req).role === 'HR_ADMIN' && req.query.includeInactive === 'true';
+    const includeInactive = currentUser(req).role !== 'EMPLOYEE' && req.query.includeInactive === 'true';
     ok(res, await surveys.listQuestions(includeInactive));
   }),
 );
 
 surveysRouter.post(
   '/questions',
-  authorize('HR_ADMIN'),
+  authorize(...HR_LEVEL),
   validate({ body: questionBody }),
   asyncHandler(async (req, res) => created(res, await surveys.createQuestion(currentUser(req), req.body, ipOf(req)))),
 );
 
 surveysRouter.patch(
   '/questions/:id',
-  authorize('HR_ADMIN'),
+  authorize(...HR_LEVEL),
   validate({ body: questionBody.partial().refine((v) => Object.keys(v).length > 0, { message: 'Provide at least one field to update' }) }),
   asyncHandler(async (req, res) => ok(res, await surveys.updateQuestion(currentUser(req), parseId(req.params.id), req.body, ipOf(req)))),
 );

@@ -15,7 +15,7 @@ function DetailsForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   if (!user) return null;
-  const hasJobFields = user.role !== 'HR_ADMIN';
+  const hasJobFields = user.role === 'EMPLOYEE' || user.role === 'LINE_MANAGER';
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();

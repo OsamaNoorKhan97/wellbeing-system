@@ -15,8 +15,8 @@ const access = [
     never: 'Your mood, stress or energy ratings and your individual survey answers.',
   },
   {
-    who: 'HR / Admin',
-    sees: 'Account information needed for administration (name, ID, role, status, assigned manager) and activity counts; organization-wide totals, trends and averages.',
+    who: 'HR and Super Admin',
+    sees: 'Account information needed for administration (name, ID, role, status, assigned manager) and activity counts; organization-wide totals, trends and averages. When two consecutive check-ins indicate poor well-being, your Line Manager and HR are told so they can offer support; the alert shows dates, not your scores.',
     never: 'Your individual ratings, individual survey answers, or the content of your requests. Averages are hidden whenever a group is too small to keep individuals unidentifiable.',
   },
 ];

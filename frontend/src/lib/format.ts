@@ -28,8 +28,8 @@ export function formatDay(day: string): string {
   return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' }).format(new Date(year, month - 1, date));
 }
 
-export const roleLabels: Record<Role, string> = { EMPLOYEE: 'Employee', LINE_MANAGER: 'Line Manager', HR_ADMIN: 'HR / Admin' };
-export const roleHome: Record<Role, string> = { EMPLOYEE: '/employee', LINE_MANAGER: '/manager', HR_ADMIN: '/admin' };
+export const roleLabels: Record<Role, string> = { EMPLOYEE: 'Employee', LINE_MANAGER: 'Line Manager', HR: 'HR', SUPER_ADMIN: 'Super Admin' };
+export const roleHome: Record<Role, string> = { EMPLOYEE: '/employee', LINE_MANAGER: '/manager', HR: '/admin', SUPER_ADMIN: '/super-admin' };
 
 export const requestStatusLabels: Record<RequestStatus, string> = {
   PENDING: 'Pending',
@@ -39,7 +39,26 @@ export const requestStatusLabels: Record<RequestStatus, string> = {
   COMPLETED: 'Completed',
   CANCELLED: 'Withdrawn',
 };
-export const meetingStatusLabels: Record<MeetingStatus, string> = { SCHEDULED: 'Scheduled', COMPLETED: 'Completed', CANCELLED: 'Cancelled' };
+export const meetingStatusLabels: Record<MeetingStatus, string> = {
+  SCHEDULED: 'Scheduled',
+  RESCHEDULED: 'Rescheduled',
+  REJECTED: 'Rejected',
+  CANCELLED: 'Cancelled',
+  COMPLETED: 'Completed',
+};
+export const alertStatusLabels = { ACTIVE: 'Active', ACKNOWLEDGED: 'Acknowledged', RESOLVED: 'Resolved' } as const;
+
+/** "1 hour", "24 hours", "2 days", "3 days 6 hours" for a number of hours. */
+export function describeHours(hours: number): string {
+  if (hours < 24 || hours % 24 !== 0) {
+    if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'}`;
+    const days = Math.floor(hours / 24);
+    const rest = hours % 24;
+    return `${days} day${days === 1 ? '' : 's'} ${rest} hour${rest === 1 ? '' : 's'}`;
+  }
+  const days = hours / 24;
+  return `${days} day${days === 1 ? '' : 's'}`;
+}
 
 export const initials = (name: string) =>
   name

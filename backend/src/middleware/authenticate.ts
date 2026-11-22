@@ -4,7 +4,10 @@ import { env } from '../config/env';
 import { db } from '../db/pool';
 import { asyncHandler, forbidden, unauthorized } from '../utils/http';
 
-export type Role = 'EMPLOYEE' | 'LINE_MANAGER' | 'HR_ADMIN';
+export type Role = 'EMPLOYEE' | 'LINE_MANAGER' | 'HR' | 'SUPER_ADMIN';
+
+/** Roles with organization-wide monitoring and user administration (Super Admin is a superset of HR). */
+export const HR_LEVEL: Role[] = ['HR', 'SUPER_ADMIN'];
 
 export interface AuthUser {
   id: number;

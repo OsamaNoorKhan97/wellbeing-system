@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { authenticate, authorize, currentUser } from '../../middleware/authenticate';
+import { authenticate, authorize, currentUser, HR_LEVEL } from '../../middleware/authenticate';
 import { validate } from '../../middleware/validate';
 import { ipOf } from '../../services/audit.service';
 import { asyncHandler, ok, parseId } from '../../utils/http';
 import * as assignments from './assignments.service';
 
 export const assignmentsRouter = Router();
-assignmentsRouter.use(authenticate, authorize('HR_ADMIN'));
+assignmentsRouter.use(authenticate, authorize(...HR_LEVEL));
 
 assignmentsRouter.get('/', asyncHandler(async (_req, res) => ok(res, await assignments.listAssignmentsByManager())));
 

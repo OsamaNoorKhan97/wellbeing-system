@@ -6,6 +6,7 @@ import { AnalyticsPage } from './pages/admin/AnalyticsPage';
 import { AssignmentsPage } from './pages/admin/AssignmentsPage';
 import { AuditLogPage } from './pages/admin/AuditLogPage';
 import { SettingsPage } from './pages/admin/SettingsPage';
+import { SuperAdminDashboard } from './pages/admin/SuperAdminDashboard';
 import { SurveyManagementPage } from './pages/admin/SurveyManagementPage';
 import { UsersPage } from './pages/admin/UsersPage';
 import { LoginPage } from './pages/auth/LoginPage';
@@ -19,6 +20,7 @@ import { ManagerDashboard } from './pages/manager/ManagerDashboard';
 import { MeetingsPage } from './pages/manager/MeetingsPage';
 import { RequestsPage } from './pages/manager/RequestsPage';
 import { TeamPage } from './pages/manager/TeamPage';
+import { AlertsPage } from './pages/shared/AlertsPage';
 import { NotFoundPage } from './pages/shared/NotFoundPage';
 import { NotificationsPage } from './pages/shared/NotificationsPage';
 import { PrivacyPage, PublicPrivacyPage } from './pages/shared/PrivacyPage';
@@ -40,18 +42,34 @@ const portals: { role: Role; base: string; pages: [string, ReactNode][] }[] = [
   {
     role: 'LINE_MANAGER',
     base: '/manager',
-    pages: [['', <ManagerDashboard />], ['team', <TeamPage />], ['requests', <RequestsPage />], ['meetings', <MeetingsPage />]],
+    pages: [['', <ManagerDashboard />], ['team', <TeamPage />], ['alerts', <AlertsPage />], ['requests', <RequestsPage />], ['meetings', <MeetingsPage />]],
   },
   {
-    role: 'HR_ADMIN',
+    role: 'HR',
     base: '/admin',
     pages: [
       ['', <AdminDashboard />],
+      ['alerts', <AlertsPage />],
       ['users', <UsersPage />],
       ['assignments', <AssignmentsPage />],
       ['surveys', <SurveyManagementPage />],
       ['analytics', <AnalyticsPage />],
+      // HR can see the global configuration but only the Super Admin can change it.
       ['settings', <SettingsPage />],
+      ['audit-log', <AuditLogPage />],
+    ],
+  },
+  {
+    role: 'SUPER_ADMIN',
+    base: '/super-admin',
+    pages: [
+      ['', <SuperAdminDashboard />],
+      ['configuration', <SettingsPage />],
+      ['alerts', <AlertsPage />],
+      ['users', <UsersPage />],
+      ['assignments', <AssignmentsPage />],
+      ['surveys', <SurveyManagementPage />],
+      ['analytics', <AnalyticsPage />],
       ['audit-log', <AuditLogPage />],
     ],
   },

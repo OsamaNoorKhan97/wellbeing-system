@@ -1,8 +1,8 @@
 import { api } from '../lib/api';
 import type {
-  AnalyticsSummary, AppNotification, AppSetting, Assessment, AssessmentStatus, AuditEntry, EmployeeDashboard, ManagerDashboard,
-  ManagerWithTeam, Meeting, RequestStatus, RequestType, Role, SupportRequest, SurveyAnalytics, SurveyQuestion, SurveyStatus,
-  SurveySubmission, TeamMember, Trends, User, UserDetail,
+  AnalyticsSummary, AppNotification, AppSetting, Assessment, AssessmentStatus, AuditEntry, BreakRecommendation, EmployeeDashboard,
+  ManagerDashboard, ManagerWithTeam, Meeting, MeetingHistoryEntry, RequestStatus, RequestType, Role, SupportRequest, SurveyAnalytics,
+  SurveyQuestion, SurveyStatus, SurveySubmission, TeamMember, Trends, User, UserDetail, WellbeingAlert, WellbeingAlertDetail,
 } from '../types';
 
 export interface Paging {
@@ -38,7 +38,18 @@ export const assessmentService = {
   status: () => api.get<AssessmentStatus>('/assessments/status'),
   list: (paging: Paging) => api.get<Assessment[]>('/assessments', { ...paging }),
   submit: (ratings: { mood: number; stress: number; energy: number }) =>
-    api.post<{ assessment: Assessment; status: AssessmentStatus }>('/assessments', ratings),
+    api.post<{ assessment: Assessment; status: AssessmentStatus; recommendation: BreakRecommendation | null }>('/assessments', ratings),
+};
+
+export type AlertFilter = 'open' | 'ACTIVE' | 'ACKNOWLEDGED' | 'RESOLVED' | 'all';
+
+export const alertService = {
+  list: (query: Paging & { status?: AlertFilter }) => api.get<WellbeingAlert[]>('/alerts', { ...query }),
+  openCount: () => api.get<{ open: number }>('/alerts/open-count'),
+  get: (id: number) => api.get<WellbeingAlertDetail>(`/alerts/${id}`),
+  acknowledge: (id: number, comment?: string) => api.post<WellbeingAlertDetail>(`/alerts/${id}/acknowledge`, { comment: comment || null }),
+  resolve: (id: number, comment?: string) => api.post<WellbeingAlertDetail>(`/alerts/${id}/resolve`, { comment: comment || null }),
+  comment: (id: number, comment: string) => api.post<WellbeingAlertDetail>(`/alerts/${id}/comments`, { comment }),
 };
 
 export const surveyService = {
@@ -55,7 +66,8 @@ export const surveyService = {
 
 export const requestService = {
   list: (query: Paging & { type?: RequestType; status?: RequestStatus }) => api.get<SupportRequest[]>('/requests', { ...query }),
-  create: (type: RequestType, reason: string) => api.post<SupportRequest>('/requests', { type, reason: reason || null }),
+  create: (type: RequestType, reason: string, alertId?: number) =>
+    api.post<SupportRequest>('/requests', { type, reason: reason || null, ...(alertId ? { alertId } : {}) }),
   approve: (id: number, comment: string) => api.post<SupportRequest>(`/requests/${id}/approve`, { comment: comment || null }),
   reject: (id: number, comment: string) => api.post<SupportRequest>(`/requests/${id}/reject`, { comment: comment || null }),
   cancel: (id: number) => api.post<SupportRequest>(`/requests/${id}/cancel`),
@@ -68,6 +80,11 @@ export const meetingService = {
   update: (id: number, input: Partial<MeetingInput>) => api.patch<Meeting>(`/meetings/${id}`, input),
   cancel: (id: number, reason: string) => api.post<Meeting>(`/meetings/${id}/cancel`, { reason: reason || null }),
   complete: (id: number) => api.post<Meeting>(`/meetings/${id}/complete`),
+  reject: (id: number, reason: string) => api.post<Meeting>(`/meetings/${id}/reject`, { reason: reason || null }),
+  reschedule: (id: number, input: { scheduledAt: string; durationMinutes?: number; reason?: string | null }) =>
+    api.post<Meeting>(`/meetings/${id}/reschedule`, input),
+  snooze: (id: number, input: { minutes: number } | { until: string }) => api.post<Meeting>(`/meetings/${id}/snooze`, input),
+  history: (id: number) => api.get<MeetingHistoryEntry[]>(`/meetings/${id}/history`),
 };
 
 export const notificationService = {

@@ -1,4 +1,4 @@
-import { after, before, describe, it } from 'node:test';
+﻿import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { api, db, makeUser, startServer, stopServer, type TestUser } from './helpers';
 
@@ -7,7 +7,7 @@ describe('Organizational Behavior survey', () => {
 
   before(async () => {
     await startServer();
-    admin = await makeUser('HR_ADMIN');
+    admin = await makeUser('HR');
     employee = await makeUser('EMPLOYEE');
   });
   after(stopServer);

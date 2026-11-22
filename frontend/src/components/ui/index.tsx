@@ -1,5 +1,5 @@
-import { useEffect, useId, type ButtonHTMLAttributes, type ReactNode } from 'react';
-import { FiAlertTriangle, FiChevronLeft, FiChevronRight, FiInbox, FiX } from 'react-icons/fi';
+import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react';
+import { FiAlertTriangle, FiChevronDown, FiChevronLeft, FiChevronRight, FiInbox, FiX } from 'react-icons/fi';
 import { meetingStatusLabels, requestStatusLabels } from '../../lib/format';
 import type { MeetingStatus, PageMeta, RequestStatus } from '../../types';
 
@@ -170,7 +170,7 @@ export function Badge({ tone = 'slate', children }: { tone?: Tone; children: Rea
 }
 
 const requestTones: Record<RequestStatus, Tone> = { PENDING: 'amber', APPROVED: 'green', REJECTED: 'red', SCHEDULED: 'blue', COMPLETED: 'slate', CANCELLED: 'slate' };
-const meetingTones: Record<MeetingStatus, Tone> = { SCHEDULED: 'blue', COMPLETED: 'green', CANCELLED: 'red' };
+const meetingTones: Record<MeetingStatus, Tone> = { SCHEDULED: 'blue', RESCHEDULED: 'violet', REJECTED: 'amber', COMPLETED: 'green', CANCELLED: 'red' };
 
 export const RequestStatusBadge = ({ status }: { status: RequestStatus }) => <Badge tone={requestTones[status]}>{requestStatusLabels[status]}</Badge>;
 export const MeetingStatusBadge = ({ status }: { status: MeetingStatus }) => <Badge tone={meetingTones[status]}>{meetingStatusLabels[status]}</Badge>;
@@ -304,6 +304,103 @@ export function ConfirmDialog({ open, title, message, confirmLabel = 'Confirm', 
     >
       <div className="text-sm text-slate-600">{message}</div>
     </Modal>
+  );
+}
+
+/* ---------- Action menu ---------- */
+
+export interface ActionMenuItem {
+  label: string;
+  icon?: ReactNode;
+  onSelect: () => void;
+  danger?: boolean;
+  /** A thin divider is drawn above this item. */
+  separated?: boolean;
+}
+
+/**
+ * A "…" button that opens a menu of actions. The menu is positioned with `fixed` coordinates so a table's
+ * horizontal scroll area cannot clip it, and it closes on outside click, Escape, scroll or selection.
+ */
+export function ActionMenu({ label, items }: { label: string; items: ActionMenuItem[] }) {
+  const [position, setPosition] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuId = useId();
+  const open = position !== null;
+
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setPosition(null);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        close();
+        buttonRef.current?.focus();
+      }
+    };
+    const onPointer = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!buttonRef.current?.contains(target) && !document.getElementById(menuId)?.contains(target)) close();
+    };
+    document.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onPointer);
+    window.addEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onPointer);
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [open, menuId]);
+
+  const toggle = () => {
+    if (open) return setPosition(null);
+    const rect = buttonRef.current!.getBoundingClientRect();
+    const right = Math.max(8, window.innerWidth - rect.right);
+    // Open upwards when there is not enough room below the button.
+    setPosition(window.innerHeight - rect.bottom < items.length * 40 + 24 ? { bottom: window.innerHeight - rect.top + 4, right } : { top: rect.bottom + 4, right });
+  };
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
+        onClick={toggle}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 shadow-xs hover:bg-slate-50"
+      >
+        {label}
+        <FiChevronDown className="h-3.5 w-3.5" aria-hidden />
+      </button>
+      {open && (
+        <ul
+          id={menuId}
+          role="menu"
+          style={{ position: 'fixed', top: position.top, bottom: position.bottom, right: position.right }}
+          className="z-40 min-w-52 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-left shadow-lg"
+        >
+          {items.map((item) => (
+            <li key={item.label} role="none" className={item.separated ? 'mt-1 border-t border-slate-100 pt-1' : ''}>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setPosition(null);
+                  item.onSelect();
+                }}
+                className={`flex w-full items-center gap-2.5 px-4 py-2 text-sm hover:bg-slate-50 ${item.danger ? 'text-red-600' : 'text-slate-700'}`}
+              >
+                {item.icon && <span aria-hidden>{item.icon}</span>}
+                {item.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
 

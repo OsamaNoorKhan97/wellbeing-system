@@ -8,14 +8,19 @@ import { meetingFields } from '../meetings/meetings.routes';
 import * as requests from './requests.service';
 
 const typeSchema = z.enum(['BREAK', 'DISCUSSION']);
-const createBody = z.object({ type: typeSchema, reason: z.string().trim().max(1000).nullish() });
+const createBody = z.object({
+  type: typeSchema,
+  reason: z.string().trim().max(1000).nullish(),
+  // Set when the break is requested from the automatic well-being recommendation.
+  alertId: z.number().int().positive().nullish(),
+});
 const decisionBody = z.object({ comment: z.string().trim().max(1000).nullish() });
 const listQuery = paginationSchema.extend({
   type: typeSchema.optional(),
   status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'SCHEDULED', 'COMPLETED', 'CANCELLED']).optional(),
 });
 
-// HR/Admin deliberately has no access to individual requests; it sees request volumes through analytics only.
+// HR and Super Admin deliberately has no access to individual requests; it sees request volumes through analytics only.
 export const requestsRouter = Router();
 requestsRouter.use(authenticate, authorize('EMPLOYEE', 'LINE_MANAGER'));
 
@@ -34,7 +39,7 @@ requestsRouter.post(
   authorize('EMPLOYEE'),
   validate({ body: createBody }),
   asyncHandler(async (req, res) =>
-    created(res, await requests.createRequest(currentUser(req), req.body.type, req.body.reason || null, ipOf(req))),
+    created(res, await requests.createRequest(currentUser(req), req.body.type, req.body.reason || null, ipOf(req), req.body.alertId ?? null)),
   ),
 );
 

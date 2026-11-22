@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { FiCalendar, FiCheck, FiEdit2, FiPlus, FiX } from 'react-icons/fi';
+import { FiBellOff, FiCalendar, FiCheck, FiClock, FiEdit2, FiPlus, FiRepeat, FiSlash, FiX } from 'react-icons/fi';
+import { MeetingHistoryModal, RejectMeetingModal, RescheduleMeetingModal, SnoozeMeetingModal } from '../../components/MeetingActionModals';
 import { MeetingFormModal } from '../../components/MeetingFormModal';
-import { Button, Card, EmptyState, ErrorState, Field, MeetingStatusBadge, Modal, PageHeader, PageLoader, Pagination, Tabs } from '../../components/ui';
+import { ActionMenu, Button, Card, EmptyState, ErrorState, Field, MeetingStatusBadge, Modal, PageHeader, PageLoader, Pagination, Tabs } from '../../components/ui';
 import { useToast } from '../../context/ToastContext';
 import { useFetch } from '../../hooks/useFetch';
 import { errorMessage } from '../../lib/api';
-import { formatDate, formatTime } from '../../lib/format';
+import { formatDate, formatDateTime, formatTime } from '../../lib/format';
 import { managerService, meetingService } from '../../services';
-import type { Meeting } from '../../types';
+import { isActiveMeeting, type Meeting } from '../../types';
 
 export function MeetingsPage() {
   const toast = useToast();
@@ -19,6 +20,10 @@ export function MeetingsPage() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Meeting | null>(null);
   const [cancelling, setCancelling] = useState<Meeting | null>(null);
+  const [rejecting, setRejecting] = useState<Meeting | null>(null);
+  const [rescheduling, setRescheduling] = useState<Meeting | null>(null);
+  const [snoozing, setSnoozing] = useState<Meeting | null>(null);
+  const [viewingHistory, setViewingHistory] = useState<Meeting | null>(null);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -57,7 +62,7 @@ export function MeetingsPage() {
     <>
       <PageHeader
         title="Meeting Management"
-        description="Schedule, update and cancel meetings with your team. Employees are notified of every change."
+        description="Schedule, reschedule, reject or cancel meetings and snooze reminders. Employees are notified of every change to a meeting."
         actions={
           <Button onClick={() => setCreating(true)} icon={<FiPlus aria-hidden />} disabled={activeTeam.length === 0}>
             Schedule meeting
@@ -73,7 +78,7 @@ export function MeetingsPage() {
           }}
           options={[
             { value: 'upcoming', label: 'Upcoming' },
-            { value: 'past', label: 'Past and cancelled' },
+            { value: 'past', label: 'Past, rejected and cancelled' },
           ]}
         />
       </div>
@@ -123,27 +128,47 @@ export function MeetingsPage() {
                       <p className="truncate" title={meeting.purpose ?? undefined}>{meeting.purpose || '—'}</p>
                       {meeting.requestId && <p className="text-xs text-slate-400">From a discussion request</p>}
                       {meeting.cancellationReason && <p className="truncate text-xs text-red-600" title={meeting.cancellationReason}>Cancelled: {meeting.cancellationReason}</p>}
+                      {meeting.rejectionReason && <p className="truncate text-xs text-amber-700" title={meeting.rejectionReason}>Rejected: {meeting.rejectionReason}</p>}
+                      {meeting.rescheduleCount > 0 && isActiveMeeting(meeting.status) && (
+                        <p className="text-xs text-violet-700">Rescheduled {meeting.rescheduleCount} time{meeting.rescheduleCount === 1 ? '' : 's'}</p>
+                      )}
+                      {meeting.snoozedUntil && isActiveMeeting(meeting.status) && (
+                        <p className="inline-flex items-center gap-1 text-xs text-slate-500" title="Only your reminder is postponed; the meeting time is unchanged">
+                          <FiBellOff aria-hidden /> Reminder snoozed until {formatDateTime(meeting.snoozedUntil)}
+                        </p>
+                      )}
                     </td>
                     <td className="whitespace-nowrap">{meeting.location || '—'}</td>
                     <td>
                       <MeetingStatusBadge status={meeting.status} />
                     </td>
                     <td>
-                      {meeting.status === 'SCHEDULED' && (
-                        <div className="flex justify-end gap-1.5">
-                          {new Date(meeting.scheduledAt).getTime() < Date.now() && (
-                            <Button size="sm" onClick={() => complete(meeting)} icon={<FiCheck aria-hidden />}>
-                              Mark completed
+                      <div className="flex justify-end gap-1.5">
+                        {isActiveMeeting(meeting.status) && new Date(meeting.scheduledAt).getTime() < Date.now() && (
+                          <Button size="sm" onClick={() => complete(meeting)} icon={<FiCheck aria-hidden />}>
+                            Mark completed
+                          </Button>
+                        )}
+                        {isActiveMeeting(meeting.status) ? (
+                          <ActionMenu
+                            label="Actions"
+                            items={[
+                              { label: 'Reschedule meeting', icon: <FiRepeat />, onSelect: () => setRescheduling(meeting) },
+                              { label: 'Reject meeting', icon: <FiSlash />, onSelect: () => setRejecting(meeting) },
+                              { label: 'Snooze reminder', icon: <FiBellOff />, onSelect: () => setSnoozing(meeting) },
+                              { label: 'Edit details', icon: <FiEdit2 />, onSelect: () => setEditing(meeting), separated: true },
+                              { label: 'View history', icon: <FiClock />, onSelect: () => setViewingHistory(meeting) },
+                              { label: 'Cancel meeting', icon: <FiX />, onSelect: () => setCancelling(meeting), danger: true, separated: true },
+                            ]}
+                          />
+                        ) : (
+                          (meeting.rescheduleCount > 0 || meeting.status === 'REJECTED') && (
+                            <Button size="sm" variant="ghost" onClick={() => setViewingHistory(meeting)} icon={<FiClock aria-hidden />}>
+                              History
                             </Button>
-                          )}
-                          <Button size="sm" variant="secondary" onClick={() => setEditing(meeting)} icon={<FiEdit2 aria-hidden />}>
-                            Edit
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => setCancelling(meeting)} icon={<FiX aria-hidden />}>
-                            Cancel
-                          </Button>
-                        </div>
-                      )}
+                          )
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -184,6 +209,11 @@ export function MeetingsPage() {
           reload();
         }}
       />
+
+      <RejectMeetingModal meeting={rejecting} onClose={() => setRejecting(null)} onDone={() => { setRejecting(null); reload(); }} />
+      <RescheduleMeetingModal meeting={rescheduling} onClose={() => setRescheduling(null)} onDone={() => { setRescheduling(null); setScope('upcoming'); setPage(1); reload(); }} />
+      <SnoozeMeetingModal meeting={snoozing} onClose={() => setSnoozing(null)} onDone={() => { setSnoozing(null); reload(); }} />
+      <MeetingHistoryModal meeting={viewingHistory} onClose={() => setViewingHistory(null)} />
 
       <Modal
         open={cancelling !== null}

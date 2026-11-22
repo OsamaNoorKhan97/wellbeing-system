@@ -1,4 +1,4 @@
-import { after, before, describe, it } from 'node:test';
+﻿import { after, before, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { api, assign, inDays, makeUser, notificationsOf, startServer, stopServer, type TestUser } from './helpers';
 
@@ -8,7 +8,7 @@ describe('Discussion request and meeting scheduling workflow', () => {
 
   before(async () => {
     await startServer();
-    admin = await makeUser('HR_ADMIN');
+    admin = await makeUser('HR');
     manager = await makeUser('LINE_MANAGER', 'Mona Manager');
     employee = await makeUser('EMPLOYEE', 'Eli Employee');
     outsider = await makeUser('EMPLOYEE', 'Olga Outsider');
@@ -99,7 +99,7 @@ describe('Discussion request and meeting scheduling workflow', () => {
   it('reflects the workflow on the manager dashboard', async () => {
     const dashboard = await api('GET', '/managers/me/dashboard', { token: manager.token });
     assert.equal(dashboard.status, 200);
-    assert.deepEqual(dashboard.data.summary, { assignedEmployees: 1, pendingBreakRequests: 0, pendingDiscussionRequests: 1, upcomingMeetings: 0 });
+    assert.deepEqual(dashboard.data.summary, { assignedEmployees: 1, pendingBreakRequests: 0, pendingDiscussionRequests: 1, upcomingMeetings: 0, activeAlerts: 0 });
     assert.ok(dashboard.data.recentActivity.length >= 1);
   });
 });

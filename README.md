@@ -64,7 +64,8 @@ After `npm run db:seed`, every sample account uses the password in `SEED_PASSWOR
 
 | Role | Email | Employee ID |
 |---|---|---|
-| HR / Admin | hr.admin@example.com | HR001 |
+| Super Admin | super.admin@example.com | SUPER001 |
+| HR | hr.admin@example.com | HR001 |
 | Line Manager (Engineering, 5 employees) | bilal.ahmed@example.com | MGR001 |
 | Line Manager (Sales & Marketing) | sara.malik@example.com | MGR002 |
 | Line Manager (Operations) | omar.farooq@example.com | MGR003 |
@@ -74,13 +75,15 @@ After `npm run db:seed`, every sample account uses the password in `SEED_PASSWOR
 
 You can sign in with either the email address or the Employee ID. `npm run db:reset` wipes all data and loads the samples again.
 
-Without sample data, create the first HR/Admin account with:
+Without sample data, create the first Super Admin (use `ADMIN_ROLE=HR` for an HR account) with:
 
 ```bash
-ADMIN_EMAIL=you@company.com ADMIN_PASSWORD='Choose-a-strong-1' ADMIN_NAME='Your Name' ADMIN_EMPLOYEE_ID=HR001 npm run create-admin
+ADMIN_ROLE=SUPER_ADMIN ADMIN_EMAIL=you@company.com ADMIN_PASSWORD='Choose-a-strong-1' ADMIN_NAME='Your Name' ADMIN_EMPLOYEE_ID=SUPER001 npm run create-admin
 ```
 
-Employees register themselves on the sign-up page. Line Managers and further HR/Admin users are created by HR in **User Management** (or by changing an existing user's role).
+Employees register themselves on the sign-up page. Line Managers and HR users are created in **User Management** (or by changing an existing user's role). Only a Super Admin can create or promote another Super Admin.
+
+Upgrading an existing installation: `npm run db:migrate` applies migration 003, which renames the old Admin role to HR (accounts and data are kept), adds the Super Admin role and creates the new settings. Then create a Super Admin with the command above.
 
 ## Using the application
 
@@ -88,9 +91,15 @@ Employees register themselves on the sign-up page. Line Managers and further HR/
 
 **Line Manager** – Dashboard, Employee Overview (assigned employees and their activity), Employee Requests (approve or reject breaks with a comment, schedule a meeting for a discussion request), Meetings (schedule, edit, cancel, complete), Notifications, Profile.
 
-**HR / Admin** – Dashboard with charts, User Management (search, filter, create, activate/deactivate, change role, assign manager), Assignments, Survey Management (add, edit, activate, deactivate questions), Analytics, Settings (daily assessment limit, survey frequency, time zone, minimum group size), Audit Log, Notifications, Profile.
+**HR** – Dashboard with charts, Well-Being Alerts, User Management (search, filter, create, activate/deactivate, change role, assign manager), Assignments, Survey Management (add, edit, activate, deactivate questions), Analytics, Settings (read-only view of the global configuration), Audit Log, Notifications, Profile.
 
-A typical walk-through: sign in as EMP001 and request a break → sign in as MGR001, see the notification, approve it with a comment → back as EMP001 the request shows "Approved" and a notification has arrived. As HR001, change the daily assessment limit in Settings and it applies to the employee's next check-in.
+**Super Admin** – everything HR can do, plus System Configuration (the only place global settings can be changed): well-being assessment frequency (default every 24 hours; 12/24/48/72 hours or a custom interval), OB survey frequency (default 30 days; 7/15/30/45/60 days or custom), well-being alert thresholds, how many indicators and how many consecutive assessments trigger an alert, and who is notified. Also creates and manages HR, Line Manager and other Super Admin accounts and reads the activity and configuration log.
+
+**Well-being alerts** – after every successful check-in the server checks the employee's latest assessments. An assessment is *poor* when at least 2 of 3 indicators cross their thresholds (mood ≤ 2, stress ≥ 4, energy ≤ 2 by default). Two consecutive poor assessments raise one alert, notify the Line Manager and every HR user once, and show the employee a "take a break" recommendation with a **Request a Break** button that creates a break request linked to the alert. Managers, HR and the Super Admin can acknowledge, comment on and resolve alerts. Alerts show dates only, never the scores.
+
+**Meetings** – each meeting has an **Actions** menu: *Reschedule* (new date and time, optional reason; the old schedule is kept in the history), *Reject* (with an optional reason), *Snooze reminder* (1 hour, 3 hours, 1 day or a custom time; the meeting itself never moves and the manager gets one reminder when the snooze ends), *Edit*, *History* and *Cancel*. Statuses: Scheduled, Rescheduled, Rejected, Cancelled, Completed.
+
+A typical walk-through: sign in as EMP001 and request a break → sign in as MGR001, see the notification, approve it with a comment → back as EMP001 the request shows "Approved" and a notification has arrived. As SUPER001, change the assessment frequency in System Configuration and it applies to the employee's next check-in.
 
 ## Tests
 
@@ -99,7 +108,7 @@ cd backend
 npm test
 ```
 
-The tests start the API on a random port and run against `TEST_DATABASE_URL` (its data is erased on every run; the name must contain "test"). They cover authentication, role-based authorization, the daily assessment limit (including simultaneous submissions), the break request workflow, discussion and meeting scheduling, survey submission and HR administration.
+The tests start the API on a random port and run against `TEST_DATABASE_URL` (its data is erased on every run; the name must contain "test"). They cover authentication, role-based authorization, the configurable assessment interval (including simultaneous submissions), Super Admin-only settings, well-being alerts and their notifications, the break recommendation, meeting reject, reschedule and snooze, the break request workflow, discussion and meeting scheduling, survey submission and HR administration.
 
 ## Production notes
 

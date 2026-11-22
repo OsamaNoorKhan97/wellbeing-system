@@ -15,7 +15,8 @@ export async function getSummary() {
             (SELECT count(DISTINCT employee_id)::int FROM survey_submissions
               WHERE submitted_at > now() - make_interval(days => $2)) AS "surveySubmissionsThisCycle",
             (SELECT count(*)::int FROM support_requests WHERE status = 'PENDING') AS "pendingRequests",
-            (SELECT count(*)::int FROM meetings WHERE status = 'SCHEDULED' AND scheduled_at >= now()) AS "scheduledMeetings",
+            (SELECT count(*)::int FROM meetings WHERE status IN ('SCHEDULED', 'RESCHEDULED') AND scheduled_at >= now()) AS "scheduledMeetings",
+            (SELECT count(*)::int FROM wellbeing_alerts WHERE status <> 'RESOLVED') AS "openAlerts",
             (SELECT count(*)::int FROM (${ACTIVE_EMPLOYEES}) e
               WHERE NOT EXISTS (SELECT 1 FROM employee_manager_assignments a WHERE a.employee_id = e.id AND a.is_active)) AS "unassignedEmployees"`,
     [timezone, surveyFrequencyDays],
