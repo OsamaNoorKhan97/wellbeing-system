@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "WellBeing",
+    "slug": "wellbeing-mobile",
+    "scheme": "wellbeing",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.wellbeing.mobile",
+      "buildNumber": "1",
+      "infoPlist": { "ITSAppUsesNonExemptEncryption": false }
+    },
+    "android": {
+      "package": "com.wellbeing.mobile",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#0F766E",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": ["POST_NOTIFICATIONS"],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": { "favicon": "./assets/favicon.png", "bundler": "metro", "output": "single" },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      ["expo-splash-screen", { "backgroundColor": "#0F766E", "image": "./assets/splash-icon.png", "imageWidth": 160 }],
+      "expo-status-bar",
+      "@react-native-community/datetimepicker",
+      ["expo-notifications", { "color": "#0F766E", "defaultChannel": "default" }]
+    ],
+    "extra": {
+      "apiUrl": "https://wellbeing-system.onrender.com/api/v1",
+      "eas": { "projectId": "" }
+    }
+  }
+}
