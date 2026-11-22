@@ -13,3 +13,4 @@ neon.ts
 /package.json
 /package-lock.json
 LOGIN_ACCOUNTS.md
+/tsconfig.json
